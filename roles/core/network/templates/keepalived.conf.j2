@@ -1,0 +1,56 @@
+global_defs {
+    router_id {{ ansible_hostname }}
+    script_user root
+    enable_script_security
+}
+
+vrrp_script check_services {
+    script "/usr/local/bin/check_services.sh"
+    interval {{ network_ha.check_interval }}
+    weight 2
+}
+
+vrrp_instance VI_1 {
+    state MASTER
+    interface {{ network_ha.interface }}
+    virtual_router_id 51
+    priority 100
+    advert_int 1
+    authentication {
+        auth_type PASS
+        auth_pass {{ lookup('password', '/dev/null length=8 chars=ascii_letters,digits') }}
+    }
+    virtual_ipaddress {
+        {{ network_ha.virtual_ip }}
+    }
+    track_script {
+        check_services
+    }
+}
+
+{% if network_load_balancing.enable %}
+virtual_server {{ network_ha.virtual_ip }} 80 {
+    delay_loop {{ network_load_balancing.check_interval }}
+    lb_algo {{ network_load_balancing.algorithm }}
+    lb_kind DR
+    protocol TCP
+
+    real_server 192.168.1.11 80 {
+        weight 1
+        TCP_CHECK {
+            connect_timeout 3
+            nb_get_retry 3
+            delay_before_retry 3
+        }
+    }
+
+    real_server 192.168.1.12 80 {
+        weight 1
+        TCP_CHECK {
+            connect_timeout 3
+            nb_get_retry 3
+            delay_before_retry 3
+        }
+    }
+}
+{% endif %}

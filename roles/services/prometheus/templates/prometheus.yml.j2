@@ -1,0 +1,62 @@
+global:
+  scrape_interval: {{ prometheus_scrape_interval }}
+  evaluation_interval: {{ prometheus_evaluation_interval }}
+  scrape_timeout: {{ prometheus_scrape_timeout }}
+  external_labels:
+    monitor: 'infrastructure'
+
+{% if prometheus_alertmanager_enabled %}
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['{{ prometheus_alertmanager_url | urlsplit('hostname') }}:{{ prometheus_alertmanager_url | urlsplit('port') }}']
+{% endif %}
+
+{% if prometheus_rules_enabled %}
+rule_files:
+  - "rules/recording.rules.yml"
+  - "rules/alerting.rules.yml"
+{% endif %}
+
+{% if prometheus_remote_write_enabled %}
+remote_write:
+{% for url in prometheus_remote_write_urls %}
+  - url: {{ url }}
+{% endfor %}
+{% endif %}
+
+{% if prometheus_remote_read_enabled %}
+remote_read:
+{% for url in prometheus_remote_read_urls %}
+  - url: {{ url }}
+{% endfor %}
+{% endif %}
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'node'
+    static_configs:
+      - targets: {{ prometheus_node_exporter_targets | to_json }}
+
+  - job_name: 'mongodb'
+    static_configs:
+      - targets: {{ prometheus_mongodb_exporter_targets | to_json }}
+
+  - job_name: 'influxdb'
+    metrics_path: /metrics
+    static_configs:
+      - targets: {{ prometheus_influxdb_targets | to_json }}
+
+  - job_name: 'mosquitto'
+    static_configs:
+      - targets: {{ prometheus_mosquitto_exporter_targets | to_json }}
+
+  # File service discovery configs
+  - job_name: 'file_sd'
+    file_sd_configs:
+      - files:
+        - '{{ prometheus_config_dir }}/file_sd/*.yml'
+        refresh_interval: 5m

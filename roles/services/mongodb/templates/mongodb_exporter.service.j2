@@ -1,0 +1,29 @@
+[Unit]
+Description=MongoDB Exporter
+Documentation=https://github.com/percona/mongodb_exporter
+After=network.target mongod.service
+
+[Service]
+Type=simple
+User=mongodb
+Group=mongodb
+Environment="MONGODB_URI=mongodb://{{ mongodb_admin_user }}:{{ mongodb_admin_password }}@localhost:{{ mongodb_port }}/admin?ssl={{ 'true' if mongodb_ssl else 'false' }}"
+ExecStart=/usr/local/bin/mongodb_exporter \
+    --web.listen-address=:{{ mongodb_exporter_port }} \
+    --mongodb.uri=${MONGODB_URI} \
+    --collect-all
+Restart=always
+RestartSec=10
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=mongodb_exporter
+
+# Security settings
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+
+[Install]
+WantedBy=multi-user.target

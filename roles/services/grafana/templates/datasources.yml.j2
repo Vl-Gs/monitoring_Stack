@@ -1,0 +1,29 @@
+apiVersion: 1
+
+deleteDatasources:
+  - name: Prometheus
+    orgId: 1
+  - name: InfluxDB
+    orgId: 1
+
+datasources:
+{% for ds in grafana_datasources %}
+  - name: {{ ds.name }}
+    type: {{ ds.type }}
+    access: {{ ds.access }}
+    url: {{ ds.url }}
+    {% if ds.is_default is defined %}isDefault: {{ ds.is_default | lower }}{% endif %}
+    {% if ds.database is defined %}database: {{ ds.database }}{% endif %}
+    {% if ds.user is defined %}user: {{ ds.user }}{% endif %}
+    {% if ds.password is defined %}password: {{ ds.password }}{% endif %}
+    {% if ds.basic_auth is defined %}basicAuth: {{ ds.basic_auth | lower }}{% endif %}
+    {% if ds.basic_auth_user is defined %}basicAuthUser: {{ ds.basic_auth_user }}{% endif %}
+    {% if ds.basic_auth_password is defined %}basicAuthPassword: {{ ds.basic_auth_password }}{% endif %}
+    {% if ds.jsonData is defined %}
+    jsonData:
+      {{ ds.jsonData | to_nice_yaml(indent=2) | indent(6) }}
+    {% endif %}
+    editable: false
+    version: 1
+
+{% endfor %}

@@ -1,0 +1,70 @@
+#!/bin/bash
+
+# Backup verification script
+set -e
+source /etc/backup/backup.conf
+
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+LOG_FILE="{{ backup_log_dir }}/backup_verify_${TIMESTAMP}.log"
+TEMP_DIR="{{ backup_temp_dir }}/verify_${TIMESTAMP}"
+
+# Function for logging
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "${LOG_FILE}"
+}
+
+# Function to handle errors
+handle_error() {
+    log "ERROR: Verification failed - $1"
+    {% if backup_notifications_enabled and 'failure' in backup_notification_on %}
+    echo "Backup verification failed - $1" | mail -s "Backup Verification Failure" {{ backup_notification_email }}
+    {% endif %}
+    rm -rf "${TEMP_DIR}"
+    exit 1
+}
+
+# Create temporary directory
+mkdir -p "${TEMP_DIR}"
+
+# Verify latest backups
+log "Starting backup verification"
+
+# Verify database backups
+LATEST_DB_BACKUP=$(ls -t {{ backup_base_dir }}/databases/*.tar.gz 2>/dev/null | head -n1)
+if [ -n "${LATEST_DB_BACKUP}" ]; then
+    log "Verifying database backup: ${LATEST_DB_BACKUP}"
+    tar tzf "${LATEST_DB_BACKUP}" > /dev/null 2>&1 || handle_error "Database backup archive is corrupted"
+fi
+
+# Verify configuration backups
+LATEST_CONF_BACKUP=$(ls -t {{ backup_base_dir }}/configurations/*.tar.gz 2>/dev/null | head -n1)
+if [ -n "${LATEST_CONF_BACKUP}" ]; then
+    log "Verifying configuration backup: ${LATEST_CONF_BACKUP}"
+    tar tzf "${LATEST_CONF_BACKUP}" > /dev/null 2>&1 || handle_error "Configuration backup archive is corrupted"
+fi
+
+# Verify remote backups if enabled
+if [ "{{ backup_remote_enabled }}" = "true" ]; then
+    log "Verifying remote backups..."
+    case "{{ backup_remote_type }}" in
+        "s3")
+            aws s3 ls "s3://{{ backup_remote_path }}" || handle_error "Cannot access S3 backup location"
+            ;;
+        "sftp")
+            sftp "{{ backup_remote_path }}" <<< "ls" || handle_error "Cannot access SFTP backup location"
+            ;;
+        "nfs")
+            ls "{{ backup_remote_path }}" > /dev/null || handle_error "Cannot access NFS backup location"
+            ;;
+    esac
+fi
+
+log "Backup verification completed successfully"
+
+{% if backup_notifications_enabled and 'success' in backup_notification_on %}
+echo "Backup verification completed successfully" | mail -s "Backup Verification Success" {{ backup_notification_email }}
+{% endif %}
+
+# Cleanup
+rm -rf "${TEMP_DIR}"
+exit 0

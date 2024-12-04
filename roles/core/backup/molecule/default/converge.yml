@@ -1,0 +1,41 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  
+  pre_tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: true
+        cache_valid_time: 3600
+      when: ansible_os_family == "Debian"
+
+    - name: Create test directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      with_items:
+        - /var/lib/prometheus
+        - /var/lib/grafana
+        - /var/lib/influxdb
+        - /etc/prometheus
+        - /etc/grafana
+        - /etc/mosquitto
+        - /var/log/prometheus
+        - /var/log/grafana
+        - /var/log/influxdb
+        - /var/log/mosquitto
+
+    - name: Create test files
+      copy:
+        content: "Test data for {{ item }}"
+        dest: "{{ item }}/test.data"
+        mode: '0644'
+      with_items:
+        - /var/lib/prometheus
+        - /var/lib/grafana
+        - /var/lib/influxdb
+
+  roles:
+    - role: backup

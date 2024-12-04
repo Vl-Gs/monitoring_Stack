@@ -1,0 +1,125 @@
+---
+- name: Download Grafana GPG key
+  get_url:
+    url: "{{ grafana_apt_key }}"
+    dest: /usr/share/keyrings/grafana.gpg
+    mode: '0644'
+
+- name: Add Grafana repository
+  apt_repository:
+    repo: "{{ grafana_apt_repo }}"
+    state: present
+    update_cache: true
+
+- name: Install Grafana packages
+  apt:
+    name: "grafana={{ grafana_version }}.*"
+    state: present
+    update_cache: true
+
+- name: Create Grafana directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ grafana_user }}"
+    group: "{{ grafana_group }}"
+    mode: '0750'
+  with_items:
+    - "{{ grafana_data_dir }}"
+    - "{{ grafana_log_dir }}"
+    - "{{ grafana_plugins_dir }}"
+    - "{{ grafana_provisioning_dir }}/datasources"
+    - "{{ grafana_provisioning_dir }}/dashboards"
+    - "{{ grafana_provisioning_dir }}/notifiers"
+    - "/etc/grafana/ssl"
+    - "{{ grafana_provisioning_dir }}/dashboards/json"
+
+- name: Configure SSL/TLS
+  block:
+    - name: Generate SSL private key
+      openssl_privatekey:
+        path: "{{ grafana_ssl_key }}"
+        size: 4096
+        mode: '0600'
+        owner: "{{ grafana_user }}"
+        group: "{{ grafana_group }}"
+      when: grafana_ssl_enabled
+
+    - name: Generate SSL certificate
+      openssl_certificate:
+        path: "{{ grafana_ssl_cert }}"
+        privatekey_path: "{{ grafana_ssl_key }}"
+        provider: selfsigned
+        owner: "{{ grafana_user }}"
+        group: "{{ grafana_group }}"
+      when: grafana_ssl_enabled
+
+- name: Configure Grafana
+  template:
+    src: grafana.ini.j2
+    dest: /etc/grafana/grafana.ini
+    owner: "{{ grafana_user }}"
+    group: "{{ grafana_group }}"
+    mode: '0640'
+  notify: restart grafana
+
+- name: Configure Grafana datasources
+  template:
+    src: datasources.yml.j2
+    dest: "{{ grafana_provisioning_dir }}/datasources/datasources.yml"
+    owner: "{{ grafana_user }}"
+    group: "{{ grafana_group }}"
+    mode: '0640'
+  notify: restart grafana
+
+- name: Configure Grafana dashboard provider
+  template:
+    src: dashboards.yml.j2
+    dest: "{{ grafana_provisioning_dir }}/dashboards/dashboards.yml"
+    owner: "{{ grafana_user }}"
+    group: "{{ grafana_group }}"
+    mode: '0640'
+  when: grafana_dashboards_enabled
+  notify: restart grafana
+
+- name: Copy Grafana dashboards
+  copy:
+    src: "dashboards/{{ item }}"
+    dest: "{{ grafana_provisioning_dir }}/dashboards/json/{{ item }}"
+    owner: "{{ grafana_user }}"
+    group: "{{ grafana_group }}"
+    mode: '0640'
+  with_items:
+    - system_overview.json
+    - mongodb_monitoring.json
+    - influxdb_monitoring.json
+    - mosquitto_monitoring.json
+  when: grafana_dashboards_enabled
+  notify: restart grafana
+
+- name: Configure Grafana notification channels
+  template:
+    src: notifiers.yml.j2
+    dest: "{{ grafana_provisioning_dir }}/notifiers/notifiers.yml"
+    owner: "{{ grafana_user }}"
+    group: "{{ grafana_group }}"
+    mode: '0640'
+  notify: restart grafana
+
+- name: Start and enable Grafana
+  systemd:
+    name: grafana-server
+    state: started
+    enabled: true
+    daemon_reload: true
+
+- name: Wait for Grafana to be ready
+  uri:
+    url: "http://localhost:{{ grafana_http_port }}/api/health"
+    method: GET
+    status_code: 200
+  register: result
+  until: result.status == 200
+  retries: 60
+  delay: 1
+  changed_when: false

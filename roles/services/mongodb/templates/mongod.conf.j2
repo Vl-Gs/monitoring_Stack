@@ -1,0 +1,62 @@
+# mongod.conf
+
+# for documentation of all options, see:
+#   http://docs.mongodb.org/manual/reference/configuration-options/
+
+# Where and how to store data.
+storage:
+  dbPath: {{ mongodb_dbpath }}
+  journal:
+    enabled: true
+  engine: wiredTiger
+  wiredTiger:
+    engineConfig:
+      cacheSizeGB: {{ mongodb_cache_size_gb }}
+
+# where to write logging data.
+systemLog:
+  destination: file
+  logAppend: true
+  path: {{ mongodb_logpath }}
+
+# network interfaces
+net:
+  port: {{ mongodb_port }}
+  bindIp: {{ mongodb_bind_ip }}
+  maxIncomingConnections: {{ mongodb_connection_limit }}
+{% if mongodb_ssl %}
+  ssl:
+    mode: requireSSL
+    PEMKeyFile: {{ mongodb_ssl_cert }}
+    CAFile: {{ mongodb_ssl_ca }}
+{% endif %}
+
+# how the process runs
+processManagement:
+  timeZoneInfo: /usr/share/zoneinfo
+  pidFilePath: {{ mongodb_pidfile }}
+
+# security
+security:
+  authorization: {{ mongodb_authorization }}
+{% if mongodb_replication_enabled %}
+  keyFile: /etc/mongodb/keyfile
+{% endif %}
+
+# replication
+{% if mongodb_replication_enabled %}
+replication:
+  replSetName: {{ mongodb_replica_set_name }}
+  oplogSizeMB: {{ mongodb_oplog_size_mb }}
+{% endif %}
+
+# sharding
+{% if mongodb_sharding_enabled %}
+sharding:
+  clusterRole: {{ mongodb_cluster_role }}
+{% endif %}
+
+# monitoring
+operationProfiling:
+  mode: slowOp
+  slowOpThresholdMs: 100

@@ -1,0 +1,22 @@
+[monitoring_servers]
+monitor01 ansible_host=localhost
+monitor02 ansible_host=monitor02.example.com
+
+[database_servers]
+db01 ansible_host=localhost
+db02 ansible_host=db02.example.com
+
+[broker_servers]
+broker01 ansible_host=broker01.example.com
+broker02 ansible_host=broker02.example.com
+
+[all:vars]
+ansible_connection=local
+ansible_python_interpreter=/usr/bin/python3
+ansible_user=ubuntu
+
+[monitoring_servers:vars]
+prometheus_node_exporter_targets=["localhost:9100"]
+prometheus_mongodb_exporter_targets=["localhost:9216"]
+prometheus_influxdb_targets=["localhost:8086"]
+prometheus_mosquitto_exporter_targets=["localhost:9234"]

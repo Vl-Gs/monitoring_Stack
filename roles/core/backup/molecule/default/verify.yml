@@ -1,0 +1,71 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+
+  tasks:
+    - name: Verify backup directories exist
+      stat:
+        path: "{{ item }}"
+      register: backup_dirs
+      with_items:
+        - "{{ backup_dir }}"
+        - "{{ backup_dir }}/monitoring"
+        - "{{ backup_dir }}/databases"
+        - "{{ backup_dir }}/configs"
+      failed_when: not backup_dirs.results[0].stat.exists
+
+    - name: Verify backup scripts are installed
+      stat:
+        path: "/usr/local/bin/{{ item }}"
+      register: backup_scripts
+      with_items:
+        - backup-monitoring.sh
+        - backup-databases.sh
+        - restore-monitoring.sh
+        - health-check.sh
+      failed_when: not backup_scripts.results[0].stat.exists or not backup_scripts.results[0].stat.executable
+
+    - name: Verify systemd services are enabled
+      service:
+        name: "{{ item }}"
+        enabled: true
+      check_mode: true
+      register: systemd_services
+      with_items:
+        - monitoring-health.timer
+      failed_when: systemd_services.changed
+
+    - name: Verify log files exist
+      stat:
+        path: "{{ item }}"
+      register: log_files
+      with_items:
+        - /var/log/monitoring-health.log
+        - /etc/logrotate.d/monitoring
+      failed_when: not log_files.results[0].stat.exists
+
+    - name: Test backup script execution
+      command: /usr/local/bin/backup-monitoring.sh
+      register: backup_test
+      failed_when: backup_test.rc != 0
+
+    - name: Verify backup files were created
+      find:
+        paths: "{{ backup_dir }}/monitoring"
+        patterns: "*.tar.gz"
+        age: -1d
+      register: backup_files
+      failed_when: backup_files.matched == 0
+
+    - name: Verify health check script
+      command: /usr/local/bin/health-check.sh
+      register: health_check
+      failed_when: health_check.rc != 0
+
+    - name: Verify cron jobs are configured
+      command: crontab -l
+      register: crontab
+      failed_when: >
+        'backup-monitoring.sh' not in crontab.stdout or
+        'backup-databases.sh' not in crontab.stdout

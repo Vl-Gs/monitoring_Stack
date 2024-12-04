@@ -1,0 +1,5 @@
+# Mosquitto password file
+# Format: username:password (hashed)
+{% for user in mosquitto_users %}
+{{ user.username }}:{{ user.password }}
+{% endfor %}

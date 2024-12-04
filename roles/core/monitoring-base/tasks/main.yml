@@ -1,0 +1,79 @@
+---
+- name: Create monitoring user and group
+  user:
+    name: "{{ monitoring_user }}"
+    group: "{{ monitoring_group }}"
+    system: true
+    create_home: false
+    shell: /sbin/nologin
+
+- name: Create monitoring directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ monitoring_user }}"
+    group: "{{ monitoring_group }}"
+    mode: '0755'
+  with_items:
+    - "{{ monitoring_base_dir }}"
+    - "{{ monitoring_config_dir }}"
+    - "{{ monitoring_data_dir }}"
+    - "{{ monitoring_log_dir }}"
+
+- name: Download and install Node Exporter
+  block:
+    - name: Download Node Exporter
+      get_url:
+        url: "{{ node_exporter_binary_url }}"
+        dest: "/tmp/node_exporter.tar.gz"
+        mode: '0644'
+
+    - name: Extract Node Exporter
+      unarchive:
+        src: "/tmp/node_exporter.tar.gz"
+        dest: "/tmp"
+        remote_src: true
+
+    - name: Install Node Exporter binary
+      copy:
+        src: "/tmp/node_exporter-{{ node_exporter_version }}.linux-amd64/node_exporter"
+        dest: "{{ node_exporter_binary_path }}"
+        mode: '0755'
+        remote_src: true
+      notify: restart node_exporter
+
+- name: Create Node Exporter systemd service
+  template:
+    src: node_exporter.service.j2
+    dest: /etc/systemd/system/node_exporter.service
+    mode: '0644'
+  notify: restart node_exporter
+
+- name: Create SSL directories if SSL is enabled
+  file:
+    path: "{{ monitoring_ssl_cert_path }}"
+    state: directory
+    mode: '0700'
+  when: monitoring_use_ssl
+
+- name: Configure basic authentication
+  template:
+    src: auth.conf.j2
+    dest: "{{ monitoring_config_dir }}/auth.conf"
+    mode: '0640'
+    owner: "{{ monitoring_user }}"
+    group: "{{ monitoring_group }}"
+  when: monitoring_basic_auth
+
+- name: Start and enable Node Exporter service
+  systemd:
+    name: node_exporter
+    state: started
+    enabled: true
+    daemon_reload: true
+
+- name: Configure logrotate for monitoring logs
+  template:
+    src: monitoring-logrotate.j2
+    dest: /etc/logrotate.d/monitoring
+    mode: '0644'

@@ -1,0 +1,12 @@
+[Unit]
+Description=Monitoring Stack Health Check Timer
+Requires=monitoring-health.service
+
+[Timer]
+Unit=monitoring-health.service
+OnBootSec=5min
+OnUnitActiveSec=5min
+AccuracySec=1s
+
+[Install]
+WantedBy=timers.target

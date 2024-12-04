@@ -1,0 +1,67 @@
+#!/bin/bash
+
+# Configuration backup script
+set -e
+source /etc/backup/backup.conf
+
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+BACKUP_DIR="{{ backup_base_dir }}/configurations/${TIMESTAMP}"
+LOG_FILE="{{ backup_log_dir }}/configuration_backup_${TIMESTAMP}.log"
+
+# Create backup directory
+mkdir -p "${BACKUP_DIR}"
+
+# Function for logging
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "${LOG_FILE}"
+}
+
+# Function to handle errors
+handle_error() {
+    log "ERROR: Backup failed - $1"
+    {% if backup_notifications_enabled and 'failure' in backup_notification_on %}
+    echo "Backup failed - $1" | mail -s "Backup Failure Alert" {{ backup_notification_email }}
+    {% endif %}
+    exit 1
+}
+
+# Backup configuration directories
+{% for config_dir in backup_configurations %}
+log "Backing up configuration directory: {{ config_dir }}"
+if [ -d "{{ config_dir }}" ]; then
+    mkdir -p "${BACKUP_DIR}{{ config_dir }}"
+    rsync -az --delete "{{ config_dir }}/" "${BACKUP_DIR}{{ config_dir }}/" || handle_error "Failed to backup {{ config_dir }}"
+fi
+{% endfor %}
+
+# Compress backup
+if [ "{{ backup_compression }}" = "true" ]; then
+    log "Compressing backup..."
+    cd "${BACKUP_DIR}/.."
+    tar czf "${BACKUP_DIR}.tar.gz" "${TIMESTAMP}" || handle_error "Compression failed"
+    rm -rf "${BACKUP_DIR}"
+fi
+
+# Upload to remote storage if enabled
+if [ "{{ backup_remote_enabled }}" = "true" ]; then
+    log "Uploading to remote storage..."
+    case "{{ backup_remote_type }}" in
+        "s3")
+            aws s3 cp "${BACKUP_DIR}.tar.gz" "s3://{{ backup_remote_path }}/configurations/" || handle_error "S3 upload failed"
+            ;;
+        "sftp")
+            sftp "{{ backup_remote_path }}/configurations/" <<< "put ${BACKUP_DIR}.tar.gz" || handle_error "SFTP upload failed"
+            ;;
+        "nfs")
+            cp "${BACKUP_DIR}.tar.gz" "{{ backup_remote_path }}/configurations/" || handle_error "NFS copy failed"
+            ;;
+    esac
+fi
+
+log "Configuration backup completed successfully"
+
+{% if backup_notifications_enabled and 'success' in backup_notification_on %}
+echo "Configuration backup completed successfully" | mail -s "Backup Success Notification" {{ backup_notification_email }}
+{% endif %}
+
+exit 0

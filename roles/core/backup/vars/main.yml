@@ -1,0 +1,37 @@
+---
+# Internal variables for backup role
+backup_required_packages:
+  - rsync
+  - tar
+  - gzip
+  - bzip2
+  - logrotate
+  - mailutils
+  - bc
+
+backup_directories:
+  - "{{ backup_dir }}"
+  - "{{ backup_dir }}/monitoring"
+  - "{{ backup_dir }}/databases"
+  - "{{ backup_dir }}/configs"
+  - "{{ backup_log_dir }}"
+
+backup_scripts:
+  - backup-monitoring.sh
+  - backup-databases.sh
+  - restore-monitoring.sh
+  - health-check.sh
+
+systemd_units:
+  - monitoring-health.service
+  - monitoring-health.timer
+
+log_files:
+  - path: /var/log/monitoring-health.log
+    owner: root
+    group: root
+    mode: "0644"
+  - path: /var/log/backup
+    owner: root
+    group: root
+    mode: "0750"

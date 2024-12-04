@@ -1,0 +1,121 @@
+---
+- name: Create Prometheus system group
+  group:
+    name: "{{ prometheus_group }}"
+    system: true
+    state: present
+
+- name: Create Prometheus system user
+  user:
+    name: "{{ prometheus_user }}"
+    group: "{{ prometheus_group }}"
+    system: true
+    shell: "/sbin/nologin"
+    createhome: false
+    state: present
+
+- name: Create Prometheus directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ prometheus_user }}"
+    group: "{{ prometheus_group }}"
+    mode: '0750'
+  with_items:
+    - "{{ prometheus_install_dir }}"
+    - "{{ prometheus_config_dir }}"
+    - "{{ prometheus_config_dir }}/rules"
+    - "{{ prometheus_config_dir }}/file_sd"
+    - "{{ prometheus_config_dir }}/ssl"
+    - "{{ prometheus_data_dir }}"
+    - "{{ prometheus_log_dir }}"
+
+- name: Download and extract Prometheus binary
+  unarchive:
+    src: "{{ prometheus_binary_url }}"
+    dest: "/tmp"
+    remote_src: true
+    creates: "/tmp/prometheus-{{ prometheus_version }}.linux-amd64/prometheus"
+
+- name: Install Prometheus binaries
+  copy:
+    src: "/tmp/prometheus-{{ prometheus_version }}.linux-amd64/{{ item }}"
+    dest: "{{ prometheus_install_dir }}/{{ item }}"
+    owner: "{{ prometheus_user }}"
+    group: "{{ prometheus_group }}"
+    mode: '0755'
+    remote_src: true
+  with_items:
+    - prometheus
+    - promtool
+  notify: restart prometheus
+
+- name: Configure SSL/TLS
+  block:
+    - name: Generate SSL private key
+      openssl_privatekey:
+        path: "{{ prometheus_tls_key }}"
+        size: 4096
+        mode: '0600'
+        owner: "{{ prometheus_user }}"
+        group: "{{ prometheus_group }}"
+      when: prometheus_tls_enabled
+
+    - name: Generate SSL certificate
+      openssl_certificate:
+        path: "{{ prometheus_tls_cert }}"
+        privatekey_path: "{{ prometheus_tls_key }}"
+        provider: selfsigned
+        owner: "{{ prometheus_user }}"
+        group: "{{ prometheus_group }}"
+      when: prometheus_tls_enabled
+
+- name: Configure Prometheus
+  template:
+    src: prometheus.yml.j2
+    dest: "{{ prometheus_config_dir }}/prometheus.yml"
+    owner: "{{ prometheus_user }}"
+    group: "{{ prometheus_group }}"
+    mode: '0640'
+    validate: "{{ prometheus_install_dir }}/promtool check config %s"
+  notify: restart prometheus
+
+- name: Configure Prometheus web config
+  template:
+    src: web.yml.j2
+    dest: "{{ prometheus_config_dir }}/web.yml"
+    owner: "{{ prometheus_user }}"
+    group: "{{ prometheus_group }}"
+    mode: '0640'
+  when: prometheus_basic_auth_enabled
+  notify: restart prometheus
+
+- name: Configure Prometheus rules
+  template:
+    src: "{{ item }}.rules.yml.j2"
+    dest: "{{ prometheus_config_dir }}/rules/{{ item }}.rules.yml"
+    owner: "{{ prometheus_user }}"
+    group: "{{ prometheus_group }}"
+    mode: '0640'
+    validate: "{{ prometheus_install_dir }}/promtool check rules %s"
+  with_items:
+    - recording
+    - alerting
+  when: prometheus_rules_enabled
+  notify: restart prometheus
+
+- name: Configure Prometheus service
+  template:
+    src: prometheus.service.j2
+    dest: /etc/systemd/system/prometheus.service
+    mode: '0644'
+  notify: 
+    - reload systemd
+    - restart prometheus
+
+- name: Start and enable Prometheus
+  systemd:
+    name: prometheus
+    state: started
+    enabled: true
+    daemon_reload: true

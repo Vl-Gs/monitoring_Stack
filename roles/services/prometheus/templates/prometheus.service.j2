@@ -1,0 +1,41 @@
+[Unit]
+Description=Prometheus Monitoring System
+Documentation=https://prometheus.io/docs/introduction/overview/
+After=network-online.target
+
+[Service]
+Type=simple
+User={{ prometheus_user }}
+Group={{ prometheus_group }}
+ExecStart={{ prometheus_install_dir }}/prometheus \
+    --config.file={{ prometheus_config_dir }}/prometheus.yml \
+    --storage.tsdb.path={{ prometheus_data_dir }} \
+    --storage.tsdb.retention.time={{ prometheus_storage_retention_time }} \
+    --storage.tsdb.retention.size={{ prometheus_storage_retention_size }} \
+    --storage.tsdb.wal-compression={{ prometheus_tsdb_wal_compression | lower }} \
+    --storage.tsdb.min-block-duration={{ prometheus_tsdb_min_block_duration }} \
+    --storage.tsdb.max-block-duration={{ prometheus_tsdb_max_block_duration }} \
+    --web.listen-address={{ prometheus_web_listen_address }} \
+    --web.external-url={{ prometheus_web_external_url }} \
+    --web.route-prefix={{ prometheus_web_route_prefix }} \
+    {% if prometheus_basic_auth_enabled %}--web.config.file={{ prometheus_config_dir }}/web.yml \{% endif %}
+    --web.max-connections={{ prometheus_web_max_connections }} \
+    --web.read-timeout={{ prometheus_web_read_timeout }} \
+    --query.max-samples={{ prometheus_query_max_samples }} \
+    --query.timeout={{ prometheus_query_timeout }} \
+    --query.max-concurrency={{ prometheus_query_max_concurrency }}
+
+Restart=always
+RestartSec=10
+TimeoutStopSec=20
+LimitNOFILE=65535
+
+# Security settings
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+
+[Install]
+WantedBy=multi-user.target

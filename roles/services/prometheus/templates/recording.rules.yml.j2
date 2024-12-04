@@ -1,0 +1,41 @@
+groups:
+  - name: node_recording_rules
+    rules:
+      - record: instance:node_cpu:avg_rate5m
+        expr: 100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)
+
+      - record: instance:node_memory_usage:percentage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100
+
+      - record: instance:node_filesystem_usage:percentage
+        expr: (1 - node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100
+
+  - name: mongodb_recording_rules
+    rules:
+      - record: mongodb:connections:current
+        expr: mongodb_connections{state="current"}
+
+      - record: mongodb:operations:rate5m
+        expr: rate(mongodb_op_counters_total[5m])
+
+  - name: mosquitto_recording_rules
+    rules:
+      - record: mosquitto:messages:rate5m
+        expr: rate(mosquitto_messages_received_total[5m])
+
+      - record: mosquitto:bytes:rate5m
+        expr: rate(mosquitto_bytes_received_total[5m])
+
+  - name: influxdb_recording_rules
+    rules:
+      - record: influxdb:writes:rate5m
+        expr: rate(influxdb_write_points_total[5m])
+
+      - record: influxdb:queries:rate5m
+        expr: rate(influxdb_query_total[5m])
+
+{% if prometheus_recording_rules %}
+  - name: custom_recording_rules
+    rules:
+{{ prometheus_recording_rules | to_nice_yaml(indent=2) | indent(6, true) }}
+{% endif %}

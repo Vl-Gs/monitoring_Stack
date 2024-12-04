@@ -1,0 +1,28 @@
+# This file describes the network interfaces available on your system
+# and how to activate them. For more information, see interfaces(5).
+
+source /etc/network/interfaces.d/*
+
+# The loopback network interface
+auto lo
+iface lo inet loopback
+
+{% for interface in network_interfaces %}
+# {{ interface.name }} interface configuration
+auto {{ interface.name }}
+iface {{ interface.name }} inet {% if interface.dhcp %}dhcp{% else %}static
+    address {{ interface.address }}
+    netmask {{ interface.netmask }}
+    gateway {{ interface.gateway }}
+    dns-nameservers {{ interface.dns_nameservers | join(' ') }}
+{% endif %}
+
+{% endfor %}
+
+{% if network_ha.enable %}
+# Virtual IP for high availability
+auto {{ network_ha.interface }}:0
+iface {{ network_ha.interface }}:0 inet static
+    address {{ network_ha.virtual_ip }}
+    netmask {{ network_interfaces[0].netmask }}
+{% endif %}

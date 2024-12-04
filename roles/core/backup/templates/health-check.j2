@@ -1,0 +1,107 @@
+#!/bin/bash
+
+# Health check script for monitoring stack
+# {{ ansible_managed }}
+
+set -e
+
+# Configuration
+LOG_FILE="/var/log/monitoring-health.log"
+ALERT_EMAIL="{{ admin_email | default('root@localhost') }}"
+SERVICES=("prometheus" "grafana-server" "influxdb" "mosquitto")
+ENDPOINTS=(
+    "http://localhost:9090/-/healthy"     # Prometheus
+    "http://localhost:3000/api/health"    # Grafana
+    "http://localhost:8086/health"        # InfluxDB
+    "http://localhost:1883"               # Mosquitto
+)
+
+# Function to log messages
+log_message() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a $LOG_FILE
+}
+
+# Function to send email alerts
+send_alert() {
+    echo "$1" | mail -s "Monitoring Stack Alert" $ALERT_EMAIL
+}
+
+# Check system resources
+check_resources() {
+    log_message "Checking system resources..."
+    
+    # Check CPU load
+    CPU_LOAD=$(uptime | awk -F'load average:' '{ print $2 }' | cut -d, -f1)
+    if (( $(echo "$CPU_LOAD > 2" | bc -l) )); then
+        log_message "WARNING: High CPU load: $CPU_LOAD"
+        send_alert "High CPU load detected: $CPU_LOAD"
+    fi
+
+    # Check memory usage
+    MEM_FREE=$(free -m | awk '/^Mem:/{print $4}')
+    if [ $MEM_FREE -lt 512 ]; then
+        log_message "WARNING: Low memory: ${MEM_FREE}MB free"
+        send_alert "Low memory warning: ${MEM_FREE}MB free"
+    fi
+
+    # Check disk space
+    DISK_USE=$(df -h / | awk 'NR==2 {print $5}' | sed 's/%//')
+    if [ $DISK_USE -gt 85 ]; then
+        log_message "WARNING: High disk usage: ${DISK_USE}%"
+        send_alert "High disk usage warning: ${DISK_USE}%"
+    fi
+}
+
+# Check service status
+check_services() {
+    log_message "Checking service status..."
+    
+    for service in "${SERVICES[@]}"; do
+        if ! systemctl is-active --quiet $service; then
+            log_message "ERROR: $service is not running!"
+            send_alert "$service is down!"
+            
+            # Attempt to restart the service
+            log_message "Attempting to restart $service..."
+            systemctl restart $service
+            
+            # Check if restart was successful
+            if systemctl is-active --quiet $service; then
+                log_message "$service successfully restarted"
+            else
+                log_message "Failed to restart $service"
+            fi
+        else
+            log_message "$service is running"
+        fi
+    done
+}
+
+# Check API endpoints
+check_endpoints() {
+    log_message "Checking API endpoints..."
+    
+    for endpoint in "${ENDPOINTS[@]}"; do
+        if ! curl -sf $endpoint > /dev/null; then
+            log_message "ERROR: $endpoint is not responding!"
+            send_alert "API endpoint $endpoint is not responding!"
+        else
+            log_message "$endpoint is responding"
+        fi
+    done
+}
+
+# Main execution
+log_message "Starting health check..."
+
+check_resources
+check_services
+check_endpoints
+
+log_message "Health check completed"
+
+# Rotate log file if it gets too large (>10MB)
+if [ $(stat -f%z "$LOG_FILE") -gt 10485760 ]; then
+    mv $LOG_FILE ${LOG_FILE}.old
+    touch $LOG_FILE
+fi

@@ -1,0 +1,73 @@
+#!/bin/bash
+
+# Backup script for monitoring stack
+# {{ ansible_managed }}
+
+set -e
+
+# Configuration
+BACKUP_DIR="{{ backup_dir }}/monitoring"
+DATE=$(date +%Y%m%d_%H%M%S)
+RETENTION_DAYS={{ backup_retention_days }}
+
+# Create backup directory structure
+mkdir -p "${BACKUP_DIR}/prometheus"
+mkdir -p "${BACKUP_DIR}/grafana"
+mkdir -p "${BACKUP_DIR}/influxdb"
+mkdir -p "${BACKUP_DIR}/mosquitto"
+mkdir -p "${BACKUP_DIR}/configs"
+
+# Backup Prometheus data
+echo "Backing up Prometheus data..."
+tar -czf "${BACKUP_DIR}/prometheus/prometheus_data_${DATE}.tar.gz" -C {{ prometheus_data_dir }} .
+cp -r {{ prometheus_config_dir }}/* "${BACKUP_DIR}/configs/prometheus_${DATE}"
+
+# Backup Grafana
+echo "Backing up Grafana..."
+tar -czf "${BACKUP_DIR}/grafana/grafana_data_${DATE}.tar.gz" -C {{ grafana_data_dir }} .
+cp -r {{ grafana_provisioning_dir }}/* "${BACKUP_DIR}/configs/grafana_${DATE}"
+
+# Backup InfluxDB
+echo "Backing up InfluxDB..."
+influxd backup -portable "${BACKUP_DIR}/influxdb/influxdb_${DATE}"
+
+# Backup Mosquitto configs
+echo "Backing up Mosquitto configuration..."
+cp -r /etc/mosquitto "${BACKUP_DIR}/configs/mosquitto_${DATE}"
+
+# Backup SSL certificates
+echo "Backing up SSL certificates..."
+tar -czf "${BACKUP_DIR}/configs/ssl_certs_${DATE}.tar.gz" /etc/ssl/certs/*.pem /etc/ssl/private/*.key
+
+# Clean up old backups
+echo "Cleaning up old backups..."
+find "${BACKUP_DIR}" -type f -mtime +${RETENTION_DAYS} -delete
+find "${BACKUP_DIR}" -type d -mtime +${RETENTION_DAYS} -delete
+
+# Create backup report
+echo "Creating backup report..."
+cat << EOF > "${BACKUP_DIR}/backup_report_${DATE}.txt"
+Monitoring Stack Backup Report
+Date: $(date)
+
+Backup Location: ${BACKUP_DIR}
+Retention Period: ${RETENTION_DAYS} days
+
+Components Backed Up:
+- Prometheus Data and Config
+- Grafana Data and Dashboards
+- InfluxDB Data
+- Mosquitto Configuration
+- SSL Certificates
+
+Backup Size:
+$(du -sh "${BACKUP_DIR}")
+EOF
+
+# Remote backup if enabled
+{% if backup_remote_enabled %}
+echo "Syncing to remote storage..."
+rsync -avz --delete "${BACKUP_DIR}/" "{{ backup_remote_path }}/monitoring/"
+{% endif %}
+
+echo "Backup completed successfully!"

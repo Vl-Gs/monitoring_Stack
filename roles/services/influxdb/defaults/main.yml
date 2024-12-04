@@ -1,0 +1,54 @@
+---
+# InfluxDB version and installation
+influxdb_version: "2.7"
+influxdb_package: "influxdb2"
+influxdb_apt_key: "https://repos.influxdata.com/influxdata-archive_compat.key"
+influxdb_apt_repo: "deb [signed-by=/usr/share/keyrings/influxdb-archive-keyring.gpg] https://repos.influxdata.com/debian stable main"
+
+# System configuration
+influxdb_data_dir: "/var/lib/influxdb"
+influxdb_meta_dir: "/var/lib/influxdb/meta"
+influxdb_wal_dir: "/var/lib/influxdb/wal"
+influxdb_log_dir: "/var/log/influxdb"
+
+# Network configuration
+influxdb_http_port: 8086
+influxdb_bind_address: "0.0.0.0:8086"
+influxdb_reporting_disabled: true
+
+# Security configuration
+influxdb_auth_enabled: true
+influxdb_admin_user: "admin"
+influxdb_admin_password: "{{ vault_influxdb_admin_password }}"
+influxdb_org: "monitoring"
+influxdb_bucket: "metrics"
+influxdb_retention: "30d"
+
+# TLS/SSL configuration
+influxdb_ssl_enabled: true
+influxdb_ssl_cert: "/etc/influxdb/ssl/influxdb.pem"
+influxdb_ssl_key: "/etc/influxdb/ssl/influxdb.key"
+
+# Performance tuning
+influxdb_cache_max_memory_size: "1g"
+influxdb_max_concurrent_queries: 20
+influxdb_query_timeout: "1m"
+influxdb_max_series_per_database: 1000000
+influxdb_max_values_per_tag: 100000
+
+# Monitoring configuration
+influxdb_monitoring_enabled: true
+influxdb_monitoring_interval: "10s"
+influxdb_monitoring_database: "_internal"
+
+# Backup configuration
+influxdb_backup_enabled: true
+influxdb_backup_dir: "/var/backups/influxdb"
+influxdb_backup_retention: 7
+influxdb_backup_frequency: "daily"
+
+# High availability
+influxdb_ha_enabled: false
+influxdb_ha_bind_address: "127.0.0.1:8088"
+influxdb_ha_advertise_address: "{{ ansible_default_ipv4.address }}:8088"
+influxdb_ha_peers: []

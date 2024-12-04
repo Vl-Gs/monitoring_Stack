@@ -1,0 +1,68 @@
+---
+# Network interface configuration
+network_interfaces:
+  - name: eth0
+    dhcp: false
+    address: "192.168.1.10"
+    netmask: "255.255.255.0"
+    gateway: "192.168.1.1"
+    dns_nameservers:
+      - "8.8.8.8"
+      - "8.8.4.4"
+
+# Network optimization
+network_tcp_settings:
+  net.ipv4.tcp_fin_timeout: 15
+  net.ipv4.tcp_keepalive_time: 1200
+  net.ipv4.tcp_max_syn_backlog: 4096
+  net.ipv4.tcp_max_tw_buckets: 4096
+  net.ipv4.tcp_tw_reuse: 1
+  net.ipv4.ip_local_port_range: "1024 65535"
+  net.ipv4.tcp_rmem: "4096 87380 16777216"
+  net.ipv4.tcp_wmem: "4096 87380 16777216"
+
+# Network security
+network_security:
+  enable_firewall: true
+  default_policy: DROP
+  allowed_ports:
+    - port: 22
+      protocol: tcp
+    - port: 80
+      protocol: tcp
+    - port: 443
+      protocol: tcp
+    - port: 9090
+      protocol: tcp
+    - port: 9100
+      protocol: tcp
+    - port: 3000
+      protocol: tcp
+
+# Network monitoring
+network_monitoring:
+  enable_netdata: true
+  enable_bandwidth_monitoring: true
+  monitoring_interval: 60
+
+# Network tuning
+network_tuning:
+  enable_bbr: true
+  enable_tcp_fastopen: true
+  tcp_congestion_control: "bbr"
+  tcp_fastopen: 3
+
+# Load balancing
+network_load_balancing:
+  enable: true
+  algorithm: "round_robin"
+  check_interval: 3000
+  max_fails: 3
+  fail_timeout: 30s
+
+# High availability
+network_ha:
+  enable: true
+  virtual_ip: "192.168.1.100"
+  check_interval: 2
+  interface: eth0

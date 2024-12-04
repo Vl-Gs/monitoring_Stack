@@ -1,0 +1,126 @@
+---
+- name: Create backup directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0750'
+    owner: root
+    group: root
+  with_items:
+    - "{{ backup_base_dir }}"
+    - "{{ backup_temp_dir }}"
+    - "{{ backup_log_dir }}"
+    - "{{ backup_base_dir }}/databases"
+    - "{{ backup_base_dir }}/configurations"
+    - "{{ backup_base_dir }}/services"
+    - "{{ backup_dir }}"
+    - "{{ backup_dir }}/monitoring"
+    - "{{ backup_dir }}/databases"
+    - "{{ backup_dir }}/configs"
+
+- name: Install backup dependencies
+  apt:
+    name:
+      - rsync
+      - gzip
+      - pigz
+      - awscli
+      - python3-pip
+    state: present
+    update_cache: true
+
+- name: Install backup scripts
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: '0755'
+    owner: root
+    group: root
+  with_items:
+    - { src: 'backup-databases.j2', dest: '/usr/local/bin/backup-databases' }
+    - { src: 'backup-configurations.j2', dest: '/usr/local/bin/backup-configurations' }
+    - { src: 'backup-services.j2', dest: '/usr/local/bin/backup-services' }
+    - { src: 'backup-verify.j2', dest: '/usr/local/bin/backup-verify' }
+    - { src: 'backup-cleanup.j2', dest: '/usr/local/bin/backup-cleanup' }
+    - { src: 'backup-monitoring.j2', dest: '/usr/local/bin/backup-monitoring.sh' }
+    - { src: 'restore-monitoring.j2', dest: '/usr/local/bin/restore-monitoring.sh' }
+    - { src: 'health-check.j2', dest: '/usr/local/bin/health-check.sh' }
+
+- name: Install health check service
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: '0644'
+    owner: root
+    group: root
+  with_items:
+    - { src: 'monitoring-health.service.j2', dest: '/etc/systemd/system/monitoring-health.service' }
+    - { src: 'monitoring-health.timer.j2', dest: '/etc/systemd/system/monitoring-health.timer' }
+  notify: reload systemd
+
+- name: Configure backup cron jobs
+  cron:
+    name: "{{ item.name }}"
+    job: "{{ item.job }}"
+    hour: "{{ item.hour }}"
+    minute: "{{ item.minute }}"
+    state: present
+  with_items:
+    - name: "Database Backup"
+      job: "/usr/local/bin/backup-databases"
+      hour: "{{ backup_schedule.databases.time.split(':')[0] }}"
+      minute: "{{ backup_schedule.databases.time.split(':')[1] }}"
+    - name: "Configuration Backup"
+      job: "/usr/local/bin/backup-configurations"
+      hour: "{{ backup_schedule.configurations.time.split(':')[0] }}"
+      minute: "{{ backup_schedule.configurations.time.split(':')[1] }}"
+    - name: "Services Backup"
+      job: "/usr/local/bin/backup-services"
+      hour: "{{ backup_schedule.services.time.split(':')[0] }}"
+      minute: "{{ backup_schedule.services.time.split(':')[1] }}"
+    - name: "Backup monitoring stack"
+      job: "/usr/local/bin/backup-monitoring.sh"
+      hour: "1"
+      minute: "0"
+    - name: "Backup databases"
+      job: "/usr/local/bin/backup-databases.sh"
+      hour: "2"
+      minute: "0"
+
+- name: Configure backup verification
+  cron:
+    name: "Backup Verification"
+    job: "/usr/local/bin/backup-verify"
+    special_time: weekly
+    user: root
+  when: backup_verify_schedule == "weekly"
+
+- name: Configure backup cleanup
+  cron:
+    name: "Backup Cleanup"
+    job: "/usr/local/bin/backup-cleanup"
+    special_time: daily
+    user: root
+
+- name: Enable and start health check timer
+  systemd:
+    name: monitoring-health.timer
+    state: started
+    enabled: true
+    daemon_reload: true
+
+- name: Create log rotation configuration
+  template:
+    src: monitoring-logs.j2
+    dest: /etc/logrotate.d/monitoring
+    mode: '0644'
+    owner: root
+    group: root
+
+- name: Configure backup logrotate
+  template:
+    src: backup-logrotate.j2
+    dest: /etc/logrotate.d/infrastructure-backups
+    mode: '0644'
+    owner: root
+    group: root

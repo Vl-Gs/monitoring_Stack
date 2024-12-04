@@ -1,0 +1,64 @@
+---
+# Mosquitto version and installation
+mosquitto_version: "2.0"
+mosquitto_package: "mosquitto"
+
+# System configuration
+mosquitto_user: "mosquitto"
+mosquitto_group: "mosquitto"
+mosquitto_data_dir: "/var/lib/mosquitto"
+mosquitto_log_dir: "/var/log/mosquitto"
+mosquitto_conf_dir: "/etc/mosquitto"
+
+# Network configuration
+mosquitto_port: 1883
+mosquitto_websockets_port: 9001
+mosquitto_bind_address: "0.0.0.0"
+mosquitto_max_connections: 1024
+mosquitto_max_queued_messages: 1000
+
+# Security configuration
+mosquitto_allow_anonymous: false
+mosquitto_password_file: "/etc/mosquitto/passwd"
+mosquitto_acl_file: "/etc/mosquitto/acl"
+
+# SSL/TLS configuration
+mosquitto_ssl_enabled: true
+mosquitto_ssl_port: 8883
+mosquitto_ssl_cert: "/etc/mosquitto/certs/mosquitto.crt"
+mosquitto_ssl_key: "/etc/mosquitto/certs/mosquitto.key"
+mosquitto_ssl_ca: "/etc/mosquitto/ca/ca.crt"
+
+# Performance tuning
+mosquitto_max_inflight_messages: 20
+mosquitto_max_queued_bytes: 0
+mosquitto_queue_qos0_messages: false
+mosquitto_message_size_limit: 0
+mosquitto_allow_zero_length_clientid: false
+
+# Persistence configuration
+mosquitto_persistence: true
+mosquitto_persistence_location: "/var/lib/mosquitto/persistence"
+mosquitto_persistence_file: "mosquitto.db"
+mosquitto_persistence_interval: 300
+
+# Logging configuration
+mosquitto_log_dest: "file"
+mosquitto_log_facility: "local0"
+mosquitto_log_type: "all"
+mosquitto_log_timestamp: true
+
+# Bridge configuration
+mosquitto_bridges_enabled: false
+mosquitto_bridges: []
+
+# Monitoring configuration
+mosquitto_monitoring_enabled: true
+mosquitto_exporter_port: 9234
+
+# Authentication
+mosquitto_users:
+  - username: admin
+    password: "{{ vault_mosquitto_admin_password }}"
+    acl:
+      - "topic readwrite #"

@@ -1,0 +1,39 @@
+---
+dependency:
+  name: galaxy
+  options:
+    role-file: requirements.yml
+
+driver:
+  name: docker
+
+platforms:
+  - name: backup-ubuntu-20
+    image: ubuntu:20.04
+    pre_build_image: true
+    privileged: true
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    command: "/lib/systemd/systemd"
+
+provisioner:
+  name: ansible
+  env:
+    ANSIBLE_ROLES_PATH: ../../roles
+  playbooks:
+    converge: converge.yml
+    verify: verify.yml
+  inventory:
+    group_vars:
+      all:
+        backup_dir: /var/backup
+        backup_retention_days: 2
+        backup_remote_enabled: false
+        prometheus_data_dir: /var/lib/prometheus
+        grafana_data_dir: /var/lib/grafana
+        influxdb_data_dir: /var/lib/influxdb
+
+verifier:
+  name: testinfra
+  options:
+    verbose: true

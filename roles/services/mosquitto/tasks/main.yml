@@ -1,0 +1,102 @@
+---
+- name: Install Mosquitto and dependencies
+  apt:
+    name:
+      - "{{ mosquitto_package }}"
+      - "{{ mosquitto_package }}-clients"
+      - "python3-pip"
+      - "openssl"
+    state: present
+    update_cache: true
+
+- name: Create Mosquitto directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ mosquitto_user }}"
+    group: "{{ mosquitto_group }}"
+    mode: '0750'
+  with_items:
+    - "{{ mosquitto_data_dir }}"
+    - "{{ mosquitto_log_dir }}"
+    - "{{ mosquitto_conf_dir }}/conf.d"
+    - "{{ mosquitto_conf_dir }}/certs"
+    - "{{ mosquitto_persistence_location }}"
+
+- name: Configure SSL/TLS
+  block:
+    - name: Generate SSL private key
+      openssl_privatekey:
+        path: "{{ mosquitto_ssl_key }}"
+        size: 4096
+        mode: '0600'
+        owner: "{{ mosquitto_user }}"
+        group: "{{ mosquitto_group }}"
+      when: mosquitto_ssl_enabled
+
+    - name: Generate SSL certificate
+      openssl_certificate:
+        path: "{{ mosquitto_ssl_cert }}"
+        privatekey_path: "{{ mosquitto_ssl_key }}"
+        provider: selfsigned
+        owner: "{{ mosquitto_user }}"
+        group: "{{ mosquitto_group }}"
+      when: mosquitto_ssl_enabled
+
+- name: Configure Mosquitto
+  template:
+    src: mosquitto.conf.j2
+    dest: "{{ mosquitto_conf_dir }}/mosquitto.conf"
+    owner: "{{ mosquitto_user }}"
+    group: "{{ mosquitto_group }}"
+    mode: '0640'
+  notify: restart mosquitto
+
+- name: Configure Mosquitto password file
+  template:
+    src: passwd.j2
+    dest: "{{ mosquitto_password_file }}"
+    owner: "{{ mosquitto_user }}"
+    group: "{{ mosquitto_group }}"
+    mode: '0640'
+  notify: restart mosquitto
+  when: not mosquitto_allow_anonymous
+
+- name: Configure Mosquitto ACL
+  template:
+    src: acl.j2
+    dest: "{{ mosquitto_acl_file }}"
+    owner: "{{ mosquitto_user }}"
+    group: "{{ mosquitto_group }}"
+    mode: '0640'
+  notify: restart mosquitto
+  when: not mosquitto_allow_anonymous
+
+- name: Install Mosquitto exporter
+  pip:
+    name: mosquitto-exporter
+    state: present
+  when: mosquitto_monitoring_enabled
+
+- name: Configure Mosquitto exporter service
+  template:
+    src: mosquitto-exporter.service.j2
+    dest: /etc/systemd/system/mosquitto-exporter.service
+    mode: '0644'
+  notify: restart mosquitto-exporter
+  when: mosquitto_monitoring_enabled
+
+- name: Start and enable Mosquitto
+  systemd:
+    name: mosquitto
+    state: started
+    enabled: true
+    daemon_reload: true
+
+- name: Start and enable Mosquitto exporter
+  systemd:
+    name: mosquitto-exporter
+    state: started
+    enabled: true
+    daemon_reload: true
+  when: mosquitto_monitoring_enabled

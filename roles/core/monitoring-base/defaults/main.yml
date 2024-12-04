@@ -1,0 +1,38 @@
+---
+# Node Exporter configuration
+node_exporter_version: "1.6.1"
+node_exporter_binary_url: "https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter_version }}/node_exporter-{{ node_exporter_version }}.linux-amd64.tar.gz"
+node_exporter_binary_path: "/usr/local/bin/node_exporter"
+node_exporter_options:
+  - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
+  - "--collector.systemd"
+  - "--collector.processes"
+
+# Monitoring user configuration
+monitoring_user: "monitoring"
+monitoring_group: "monitoring"
+
+# Directories configuration
+monitoring_base_dir: "/opt/monitoring"
+monitoring_config_dir: "/etc/monitoring"
+monitoring_data_dir: "/var/lib/monitoring"
+monitoring_log_dir: "/var/log/monitoring"
+
+# Basic authentication
+monitoring_basic_auth: true
+monitoring_users:
+  - username: "admin"
+    password: "{{ vault_monitoring_admin_password }}"
+
+# TLS/SSL configuration
+monitoring_use_ssl: true
+monitoring_ssl_cert_path: "/etc/ssl/monitoring"
+monitoring_ssl_cert: "{{ monitoring_ssl_cert_path }}/monitoring.crt"
+monitoring_ssl_key: "{{ monitoring_ssl_cert_path }}/monitoring.key"
+
+# Alerting configuration
+alerting_enabled: true
+alerting_smtp_host: "smtp.example.com"
+alerting_smtp_port: 587
+alerting_from_email: "monitoring@example.com"
+alerting_to_email: "alerts@example.com"

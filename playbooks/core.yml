@@ -1,0 +1,21 @@
+---
+- name: Deploy Core Infrastructure
+  hosts: all
+  become: true
+  gather_facts: true
+
+  roles:
+    - role: core/docker
+      tags: ['docker']
+
+    - role: core/nginx
+      tags: ['nginx']
+
+    - role: core/monitoring-base
+      tags: ['monitoring']
+
+    - role: core/backup
+      tags: ['backup']
+
+    - role: core/network
+      tags: ['network']

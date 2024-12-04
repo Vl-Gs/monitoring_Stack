@@ -1,0 +1,32 @@
+[Unit]
+Description=Mosquitto Exporter
+Documentation=https://github.com/sapcc/mosquitto-exporter
+After=network.target mosquitto.service
+
+[Service]
+Type=simple
+User={{ mosquitto_user }}
+Group={{ mosquitto_group }}
+Environment="BROKER_ENDPOINT=tcp://localhost:{{ mosquitto_port }}"
+{% if not mosquitto_allow_anonymous %}
+Environment="BROKER_USERNAME={{ mosquitto_users[0].username }}"
+Environment="BROKER_PASSWORD={{ mosquitto_users[0].password }}"
+{% endif %}
+ExecStart=/usr/local/bin/mosquitto-exporter \
+    --endpoint ${BROKER_ENDPOINT} \
+    --bind-address :{{ mosquitto_exporter_port }} \
+    {% if not mosquitto_allow_anonymous %}--username ${BROKER_USERNAME} \
+    --password ${BROKER_PASSWORD} \{% endif %}
+    --metrics-path /metrics
+Restart=always
+RestartSec=10
+
+# Security settings
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+
+[Install]
+WantedBy=multi-user.target

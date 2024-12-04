@@ -1,0 +1,29 @@
+# Backup system configuration
+BACKUP_BASE_DIR="{{ backup_base_dir }}"
+BACKUP_TEMP_DIR="{{ backup_temp_dir }}"
+BACKUP_LOG_DIR="{{ backup_log_dir }}"
+
+# Remote storage configuration
+REMOTE_ENABLED="{{ backup_remote_enabled }}"
+REMOTE_TYPE="{{ backup_remote_type }}"
+REMOTE_PATH="{{ backup_remote_path }}"
+
+# Retention settings
+RETENTION_DAYS="{{ backup_retention_days }}"
+REMOTE_RETENTION_DAYS="{{ backup_remote_retention_days }}"
+
+# Notification settings
+NOTIFICATION_EMAIL="{{ backup_notification_email }}"
+
+# Compression settings
+COMPRESSION_ENABLED="{{ backup_compression }}"
+COMPRESSION_TYPE="{{ backup_compression_type }}"
+
+# AWS S3 configuration (if using S3)
+{% if backup_remote_type == 's3' %}
+export AWS_DEFAULT_REGION="{{ aws_region | default('us-east-1') }}"
+{% endif %}
+
+# Error handling
+set -o errexit
+set -o pipefail

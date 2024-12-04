@@ -1,0 +1,94 @@
+Create a comprehensive infrastructure automation project using Ansible with the following specifications:
+
+
+Key Components:
+
+1. Core Infrastructure (roles/core/):
+   - Docker (Ubuntu/Debian-specific installation)
+   - NGINX (with optimized configs for Ubuntu/Debian)
+   - Monitoring base setup
+   - Backup system
+   - Network configuration
+
+2. Services (roles/services/):
+   - MongoDB
+   - InfluxDB
+   - Mosquitto MQTT Broker
+
+3. Monitoring Stack:
+   - Prometheus
+   - Grafana
+   - Various exporters
+
+Configuration Requirements:
+
+1. Docker Configuration:
+   - Ubuntu/Debian repository setup
+   - Docker installation
+   - Docker Compose installation
+   - System optimizations
+   - Network setup
+   - Security hardening
+
+2. NGINX Configuration:
+   - Performance optimization
+   - Security headers
+   - SSL/TLS setup
+   - Reverse proxy configuration
+   - Load balancing
+
+3. Monitoring Setup:
+   - Prometheus metrics collection
+   - Grafana dashboards
+   - Alert configuration
+   - Service-specific exporters
+
+4. Backup System:
+   - Database backups
+   - Configuration backups
+   - Remote storage options
+   - Retention policies
+   - Verification procedures
+
+5. Network Configuration:
+   - Interface setup
+   - Security rules
+   - Performance tuning
+   - Monitoring integration
+
+6. Security Features:
+   - TLS/SSL everywhere
+   - Secure communication
+   - Access control
+   - Minimal attack surface
+   - Regular security updates
+
+7. High Availability:
+   - Service redundancy
+   - Load balancing
+   - Failover configuration
+   - Health checks
+
+8. Logging:
+   - Centralized logging
+   - Log rotation
+   - Log analysis
+   - Alert integration
+
+Main Playbook Features:
+- System requirement checks
+- Role-based deployment
+- Health verification
+- Service discovery
+- Monitoring integration
+- Backup verification
+- Handler management
+
+Variables Structure:
+- Environment-specific configurations
+- Service-specific settings
+- Security parameters
+- Monitoring configurations
+- Backup settings
+
+Please create this infrastructure automation project with Ubuntu/Debian-specific configurations and best practices for security, monitoring, and maintenance.

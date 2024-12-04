@@ -1,0 +1,104 @@
+---
+# Grafana version and installation
+grafana_version: "10.0"
+grafana_apt_key: "https://apt.grafana.com/gpg.key"
+grafana_apt_repo: "deb [signed-by=/usr/share/keyrings/grafana.gpg] https://apt.grafana.com stable main"
+
+# System configuration
+grafana_user: "grafana"
+grafana_group: "grafana"
+grafana_data_dir: "/var/lib/grafana"
+grafana_log_dir: "/var/log/grafana"
+grafana_plugins_dir: "/var/lib/grafana/plugins"
+grafana_provisioning_dir: "/etc/grafana/provisioning"
+
+# Network configuration
+grafana_http_port: 3000
+grafana_http_addr: "0.0.0.0"
+grafana_domain: "localhost"
+grafana_root_url: "%(protocol)s://%(domain)s:%(http_port)s/"
+
+# Database configuration
+grafana_database:
+  type: sqlite3
+  host: 127.0.0.1:3306
+  name: grafana
+  user: grafana
+  password: "{{ vault_grafana_db_password | default('') }}"
+  path: grafana.db
+  max_idle_conn: 2
+  max_open_conn: 0
+  conn_max_lifetime: 14400
+
+# Security configuration
+grafana_admin_user: admin
+grafana_admin_password: "{{ vault_grafana_admin_password }}"
+grafana_secret_key: "{{ vault_grafana_secret_key }}"
+grafana_disable_gravatar: true
+grafana_disable_sanitize_html: false
+
+grafana_auth:
+  disable_login_form: false
+  disable_signout_menu: false
+  anonymous_enabled: false
+  oauth_auto_login: false
+
+# SSL/TLS configuration
+grafana_ssl_enabled: true
+grafana_ssl_cert: "/etc/grafana/ssl/grafana.crt"
+grafana_ssl_key: "/etc/grafana/ssl/grafana.key"
+grafana_ssl_mode: "require"
+
+# SMTP configuration
+grafana_smtp_enabled: false
+grafana_smtp:
+  host: smtp.example.com:587
+  user: "{{ vault_grafana_smtp_user | default('') }}"
+  password: "{{ vault_grafana_smtp_password | default('') }}"
+  from_address: "grafana@example.com"
+  from_name: "Grafana"
+  skip_verify: false
+
+# Metrics configuration
+grafana_metrics_enabled: true
+grafana_metrics_basic_auth_username: "metrics"
+grafana_metrics_basic_auth_password: "{{ vault_grafana_metrics_password }}"
+
+# Feature toggles
+grafana_features:
+  enable_alpha: false
+  enable_gzip: true
+  enable_proxy: true
+  enable_metrics: true
+
+# Dashboard configuration
+grafana_dashboards_enabled: true
+grafana_dashboards_provider: "dashboards"
+grafana_dashboards_folder: "General"
+
+# Data source configuration
+grafana_datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://localhost:9090
+    is_default: true
+    basic_auth: true
+    basic_auth_user: "{{ prometheus_basic_auth_users[0].username }}"
+    basic_auth_password: "{{ prometheus_basic_auth_users[0].password }}"
+    jsonData:
+      timeInterval: "15s"
+      queryTimeout: "60s"
+      httpMethod: "POST"
+
+  - name: InfluxDB
+    type: influxdb
+    access: proxy
+    url: http://localhost:8086
+    database: metrics
+    user: "{{ influxdb_admin_user }}"
+    password: "{{ influxdb_admin_password }}"
+    jsonData:
+      version: "InfluxQL"
+      httpMode: "POST"
+      interval: "15s"

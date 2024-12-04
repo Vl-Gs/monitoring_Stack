@@ -1,0 +1,6 @@
+---
+- name: Deploy Core Infrastructure
+  import_playbook: playbooks/core.yml
+
+- name: Deploy Services
+  import_playbook: playbooks/services.yml

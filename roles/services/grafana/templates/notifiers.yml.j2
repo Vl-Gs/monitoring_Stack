@@ -1,0 +1,16 @@
+apiVersion: 1
+
+notifiers:
+  - name: Email
+    type: email
+    uid: email_notifications
+    org_id: 1
+    is_default: true
+    settings:
+      addresses: admin@example.com
+    secure_settings: {}
+
+delete_notifiers:
+  - name: Email
+    uid: email_notifications
+    org_id: 1

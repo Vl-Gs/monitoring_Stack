@@ -1,0 +1,70 @@
+# General configuration
+user {{ mosquitto_user }}
+pid_file /var/run/mosquitto/mosquitto.pid
+persistence {{ mosquitto_persistence | lower }}
+persistence_location {{ mosquitto_persistence_location }}
+persistence_file {{ mosquitto_persistence_file }}
+persistent_client_expiration 1d
+autosave_interval {{ mosquitto_persistence_interval }}
+
+# Network settings
+port {{ mosquitto_port }}
+bind_address {{ mosquitto_bind_address }}
+max_connections {{ mosquitto_max_connections }}
+max_queued_messages {{ mosquitto_max_queued_messages }}
+max_inflight_messages {{ mosquitto_max_inflight_messages }}
+max_queued_bytes {{ mosquitto_max_queued_bytes }}
+message_size_limit {{ mosquitto_message_size_limit }}
+allow_zero_length_clientid {{ mosquitto_allow_zero_length_clientid | lower }}
+
+# Security settings
+allow_anonymous {{ mosquitto_allow_anonymous | lower }}
+{% if not mosquitto_allow_anonymous %}
+password_file {{ mosquitto_password_file }}
+acl_file {{ mosquitto_acl_file }}
+{% endif %}
+
+# SSL/TLS Configuration
+{% if mosquitto_ssl_enabled %}
+listener {{ mosquitto_ssl_port }}
+cafile {{ mosquitto_ssl_ca }}
+certfile {{ mosquitto_ssl_cert }}
+keyfile {{ mosquitto_ssl_key }}
+tls_version tlsv1.2
+require_certificate false
+{% endif %}
+
+# Websockets support
+listener {{ mosquitto_websockets_port }}
+protocol websockets
+
+# Logging configuration
+log_dest {{ mosquitto_log_dest }}
+log_facility {{ mosquitto_log_facility }}
+log_type {{ mosquitto_log_type }}
+log_timestamp {{ mosquitto_log_timestamp | lower }}
+log_timestamp_format %Y-%m-%dT%H:%M:%S
+
+# Include additional config files
+include_dir {{ mosquitto_conf_dir }}/conf.d
+
+{% if mosquitto_bridges_enabled and mosquitto_bridges %}
+# Bridge Configuration
+{% for bridge in mosquitto_bridges %}
+connection {{ bridge.name }}
+address {{ bridge.address }}
+topic {{ bridge.topic }}
+{% if bridge.username is defined %}
+remote_username {{ bridge.username }}
+{% endif %}
+{% if bridge.password is defined %}
+remote_password {{ bridge.password }}
+{% endif %}
+{% if bridge.ssl is defined and bridge.ssl %}
+bridge_cafile {{ bridge.cafile }}
+bridge_certfile {{ bridge.certfile }}
+bridge_keyfile {{ bridge.keyfile }}
+{% endif %}
+
+{% endfor %}
+{% endif %}

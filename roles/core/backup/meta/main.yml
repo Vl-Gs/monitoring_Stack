@@ -1,0 +1,40 @@
+---
+galaxy_info:
+  author: Your Organization
+  description: Backup role for monitoring infrastructure
+  company: Your Organization
+  license: MIT
+  min_ansible_version: "2.9"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - focal
+        - jammy
+    - name: Debian
+      versions:
+        - buster
+        - bullseye
+
+  galaxy_tags:
+    - backup
+    - monitoring
+    - prometheus
+    - grafana
+    - influxdb
+    - mosquitto
+    - security
+
+dependencies:
+  - role: geerlingguy.pip
+    vars:
+      pip_install_packages:
+        - name: boto3
+          version: "1.26.0"
+        - name: awscli
+          version: "1.27.0"
+    when: backup_remote_type == "s3"
+
+  - role: community.general.logrotate
+    when: log_rotation_enabled | default(true)
+
+allow_duplicates: false

@@ -1,0 +1,78 @@
+---
+# Global variables for all hosts
+
+# Docker configuration
+docker_install_compose: true
+docker_compose_version: "2.20.0"
+docker_users: ["{{ ansible_user }}"]
+
+# Monitoring configuration
+node_exporter_enabled: true
+node_exporter_version: "1.6.0"
+prometheus_retention_time: "30d"
+prometheus_storage_path: "/var/lib/prometheus"
+grafana_admin_password: "{{ vault_grafana_admin_password }}"
+
+# Backup configuration
+backup_enabled: true
+backup_retention_days: 7
+backup_remote_enabled: false
+backup_remote_storage: true
+backup_remote_path: "/backup"
+
+# Security configuration
+firewall_enabled: true
+selinux_enabled: false
+fail2ban_enabled: true
+security_ssh_port: 22
+security_automatic_updates: true
+
+# SSL/TLS configuration
+ssl_enabled: true
+ssl_country: "US"
+ssl_state: "California"
+ssl_locality: "San Francisco"
+ssl_organization: "Example Org"
+ssl_organizational_unit: "IT"
+ssl_common_name: "{{ inventory_hostname }}"
+ssl_email: "admin@example.com"
+ssl_cert_path: "/etc/ssl/certs"
+ssl_private_key_path: "/etc/ssl/private"
+
+# Time synchronization
+ntp_enabled: true
+ntp_timezone: "UTC"
+
+# Logging configuration
+rsyslog_enabled: true
+logrotate_enabled: true
+logging_max_size: "100M"
+logging_max_files: 10
+
+# Package management
+apt_cache_valid_time: 3600
+apt_update_cache: true
+apt_upgrade_packages: true
+
+# User management
+create_admin_user: true
+admin_user: "{{ ansible_user }}"
+admin_groups: ["sudo", "docker"]
+
+# Network configuration
+network_interface: "eth0"
+network_ipv6_enabled: false
+network_monitoring_interface: "eth0"
+network_max_connections: 65535
+
+# Services configuration
+mongodb_version: "6.0"
+influxdb_version: "2.7"
+mosquitto_version: "2.0"
+
+# Vault passwords (these should be encrypted in production)
+vault_grafana_admin_password: "admin123"
+vault_prometheus_admin_password: "admin123"
+vault_influxdb_admin_password: "admin123"
+vault_mongodb_admin_password: "admin123"
+vault_mosquitto_admin_password: "admin123"

@@ -1,0 +1,42 @@
+---
+- name: Deploy and configure monitoring services
+  hosts: monitoring_servers
+  become: true
+  gather_facts: true
+
+  roles:
+    - role: services/mongodb
+      tags: ['mongodb', 'database']
+
+    - role: services/influxdb
+      tags: ['influxdb', 'database', 'monitoring']
+
+    - role: services/mosquitto
+      tags: ['mosquitto', 'mqtt', 'messaging']
+
+    - role: services/prometheus
+      tags: ['prometheus', 'monitoring']
+
+    - role: services/grafana
+      tags: ['grafana', 'monitoring', 'dashboard']
+
+- name: Deploy Database Services
+  hosts: database_servers
+  become: true
+  gather_facts: true
+
+  roles:
+    - role: services/mongodb
+      tags: ['mongodb']
+
+    - role: services/influxdb
+      tags: ['influxdb']
+
+- name: Deploy Message Broker
+  hosts: broker_servers
+  become: true
+  gather_facts: true
+
+  roles:
+    - role: services/mosquitto
+      tags: ['mosquitto']

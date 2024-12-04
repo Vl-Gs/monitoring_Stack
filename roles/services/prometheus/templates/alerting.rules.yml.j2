@@ -1,0 +1,77 @@
+groups:
+  - name: node_alerts
+    rules:
+      - alert: HighCPUUsage
+        expr: instance:node_cpu:avg_rate5m > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: High CPU usage on {{ "{{" }} $labels.instance {{ "}}" }}
+          description: CPU usage is above 80% for 5 minutes
+
+      - alert: HighMemoryUsage
+        expr: instance:node_memory_usage:percentage > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: High memory usage on {{ "{{" }} $labels.instance {{ "}}" }}
+          description: Memory usage is above 85% for 5 minutes
+
+      - alert: DiskSpaceRunningOut
+        expr: instance:node_filesystem_usage:percentage > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Disk space running out on {{ "{{" }} $labels.instance {{ "}}" }}
+          description: Disk usage is above 85% for 5 minutes
+
+  - name: mongodb_alerts
+    rules:
+      - alert: MongoDBHighConnections
+        expr: mongodb:connections:current > 1000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: High number of MongoDB connections
+          description: MongoDB has over 1000 current connections
+
+      - alert: MongoDBHighOperationRate
+        expr: sum(mongodb:operations:rate5m) > 10000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: High MongoDB operation rate
+          description: MongoDB operation rate is above 10k/s
+
+  - name: mosquitto_alerts
+    rules:
+      - alert: MosquittoHighMessageRate
+        expr: sum(mosquitto:messages:rate5m) > 5000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: High MQTT message rate
+          description: MQTT broker is receiving more than 5k messages/s
+
+  - name: influxdb_alerts
+    rules:
+      - alert: InfluxDBHighWriteRate
+        expr: sum(influxdb:writes:rate5m) > 10000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: High InfluxDB write rate
+          description: InfluxDB is receiving more than 10k writes/s
+
+{% if prometheus_alerting_rules %}
+  - name: custom_alerts
+    rules:
+{{ prometheus_alerting_rules | to_nice_yaml(indent=2) | indent(6, true) }}
+{% endif %}

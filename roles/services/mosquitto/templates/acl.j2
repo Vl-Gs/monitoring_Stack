@@ -1,0 +1,11 @@
+# Mosquitto ACL file
+# Format: user [username]
+#         topic [read|write|readwrite] [topic]
+
+{% for user in mosquitto_users %}
+user {{ user.username }}
+{% for acl_rule in user.acl %}
+topic {{ acl_rule }}
+{% endfor %}
+
+{% endfor %}

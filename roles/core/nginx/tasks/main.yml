@@ -1,0 +1,79 @@
+---
+- name: Install NGINX
+  apt:
+    name: "{{ nginx_package_name }}"
+    state: present
+    update_cache: true
+
+- name: Create NGINX configuration directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  with_items:
+    - /etc/nginx/conf.d
+    - /etc/nginx/sites-available
+    - /etc/nginx/sites-enabled
+    - /etc/nginx/ssl
+    - /var/www/html
+
+- name: Configure NGINX main configuration
+  template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/nginx.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: restart nginx
+
+- name: Configure NGINX security parameters
+  template:
+    src: security.conf.j2
+    dest: /etc/nginx/conf.d/security.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: restart nginx
+
+- name: Configure NGINX SSL parameters
+  template:
+    src: ssl.conf.j2
+    dest: /etc/nginx/conf.d/ssl.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: restart nginx
+
+- name: Remove default NGINX site
+  file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  notify: restart nginx
+
+- name: Create NGINX cache directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: www-data
+    group: www-data
+    mode: '0755'
+  with_items:
+    - /var/cache/nginx/proxy_temp
+    - /var/cache/nginx/client_temp
+    - /var/cache/nginx/fastcgi_temp
+    - /var/cache/nginx/uwsgi_temp
+    - /var/cache/nginx/scgi_temp
+
+- name: Configure logrotate for NGINX
+  template:
+    src: nginx-logrotate.j2
+    dest: /etc/logrotate.d/nginx
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Start and enable NGINX service
+  systemd:
+    name: "{{ nginx_service_name }}"
+    state: started
+    enabled: true

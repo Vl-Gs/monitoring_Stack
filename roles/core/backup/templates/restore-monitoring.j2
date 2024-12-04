@@ -1,0 +1,75 @@
+#!/bin/bash
+
+# Restore script for monitoring stack
+# {{ ansible_managed }}
+
+set -e
+
+# Configuration
+BACKUP_DIR="{{ backup_dir }}/monitoring"
+
+# Check if backup date is provided
+if [ -z "$1" ]; then
+    echo "Please provide backup date in format YYYYMMDD_HHMMSS"
+    echo "Available backups:"
+    ls -l "${BACKUP_DIR}/prometheus" | grep "prometheus_data_" | awk '{print $9}' | cut -d'_' -f3-4
+    exit 1
+fi
+
+BACKUP_DATE="$1"
+
+# Verify backup files exist
+if [ ! -f "${BACKUP_DIR}/prometheus/prometheus_data_${BACKUP_DATE}.tar.gz" ]; then
+    echo "Backup for date ${BACKUP_DATE} not found!"
+    exit 1
+fi
+
+# Stop services
+echo "Stopping monitoring services..."
+systemctl stop prometheus grafana-server influxdb mosquitto
+
+# Restore Prometheus
+echo "Restoring Prometheus data..."
+rm -rf {{ prometheus_data_dir }}/*
+tar -xzf "${BACKUP_DIR}/prometheus/prometheus_data_${BACKUP_DATE}.tar.gz" -C {{ prometheus_data_dir }}
+cp -r "${BACKUP_DIR}/configs/prometheus_${BACKUP_DATE}"/* {{ prometheus_config_dir }}/
+
+# Restore Grafana
+echo "Restoring Grafana data..."
+rm -rf {{ grafana_data_dir }}/*
+tar -xzf "${BACKUP_DIR}/grafana/grafana_data_${BACKUP_DATE}.tar.gz" -C {{ grafana_data_dir }}
+cp -r "${BACKUP_DIR}/configs/grafana_${BACKUP_DATE}"/* {{ grafana_provisioning_dir }}/
+
+# Restore InfluxDB
+echo "Restoring InfluxDB data..."
+influxd restore -portable "${BACKUP_DIR}/influxdb/influxdb_${BACKUP_DATE}"
+
+# Restore Mosquitto configs
+echo "Restoring Mosquitto configuration..."
+cp -r "${BACKUP_DIR}/configs/mosquitto_${BACKUP_DATE}"/* /etc/mosquitto/
+
+# Restore SSL certificates
+echo "Restoring SSL certificates..."
+tar -xzf "${BACKUP_DIR}/configs/ssl_certs_${BACKUP_DATE}.tar.gz" -C /
+
+# Fix permissions
+echo "Fixing permissions..."
+chown -R prometheus:prometheus {{ prometheus_data_dir }} {{ prometheus_config_dir }}
+chown -R grafana:grafana {{ grafana_data_dir }} {{ grafana_provisioning_dir }}
+chown -R mosquitto:mosquitto /etc/mosquitto
+
+# Start services
+echo "Starting monitoring services..."
+systemctl start prometheus grafana-server influxdb mosquitto
+
+# Verify services
+echo "Verifying services..."
+for service in prometheus grafana-server influxdb mosquitto; do
+    if systemctl is-active --quiet $service; then
+        echo "$service is running"
+    else
+        echo "WARNING: $service failed to start"
+    fi
+done
+
+echo "Restore completed! Please verify all services are functioning correctly."

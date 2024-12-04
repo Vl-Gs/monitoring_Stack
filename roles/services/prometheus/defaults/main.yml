@@ -1,0 +1,83 @@
+---
+# Prometheus version and installation
+prometheus_version: "2.45.0"
+prometheus_binary_url: "https://github.com/prometheus/prometheus/releases/download/v{{ prometheus_version }}/prometheus-{{ prometheus_version }}.linux-amd64.tar.gz"
+prometheus_user: "prometheus"
+prometheus_group: "prometheus"
+
+# System configuration
+prometheus_install_dir: "/opt/prometheus"
+prometheus_config_dir: "/etc/prometheus"
+prometheus_data_dir: "/var/lib/prometheus"
+prometheus_log_dir: "/var/log/prometheus"
+
+# Network configuration
+prometheus_web_listen_address: "0.0.0.0:9090"
+prometheus_web_external_url: "http://localhost:9090/"
+prometheus_web_route_prefix: "/"
+
+# Storage configuration
+prometheus_storage_retention_time: "15d"
+prometheus_storage_retention_size: "50GB"
+prometheus_tsdb_wal_compression: true
+prometheus_tsdb_min_block_duration: "2h"
+prometheus_tsdb_max_block_duration: "24h"
+
+# Security configuration
+prometheus_basic_auth_enabled: true
+prometheus_basic_auth_users:
+  - username: admin
+    password: "{{ vault_prometheus_admin_password }}"
+
+prometheus_tls_enabled: true
+prometheus_tls_cert: "/etc/prometheus/ssl/prometheus.crt"
+prometheus_tls_key: "/etc/prometheus/ssl/prometheus.key"
+
+# Scrape configurations
+prometheus_scrape_interval: "15s"
+prometheus_evaluation_interval: "15s"
+prometheus_scrape_timeout: "10s"
+
+# Alert manager configuration
+prometheus_alertmanager_enabled: true
+prometheus_alertmanager_url: "http://localhost:9093"
+
+# Remote write/read configuration
+prometheus_remote_write_enabled: false
+prometheus_remote_write_urls: []
+prometheus_remote_read_enabled: false
+prometheus_remote_read_urls: []
+
+# Target configurations
+prometheus_node_exporter_targets:
+  - "localhost:9100"
+
+prometheus_mongodb_exporter_targets:
+  - "localhost:9216"
+
+prometheus_influxdb_targets:
+  - "localhost:8086"
+
+prometheus_mosquitto_exporter_targets:
+  - "localhost:9234"
+
+# Rules and alerts configuration
+prometheus_rules_enabled: true
+prometheus_recording_rules: []
+prometheus_alerting_rules: []
+
+# Web configuration
+prometheus_web_max_connections: 512
+prometheus_web_read_timeout: "30s"
+prometheus_web_max_request_size: "1MB"
+prometheus_web_page_title: "Prometheus Monitoring"
+
+# Query configuration
+prometheus_query_max_samples: 50000000
+prometheus_query_timeout: "2m"
+prometheus_query_max_concurrency: 20
+
+# Performance tuning
+prometheus_storage_max_chunks_to_persist: 524288
+prometheus_storage_max_series_per_metric: 100000
+prometheus_storage_max_samples_per_send: 1000

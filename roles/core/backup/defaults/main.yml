@@ -1,0 +1,98 @@
+---
+# Backup directories
+backup_base_dir: "/var/backup"
+backup_temp_dir: "/tmp/backups"
+backup_log_dir: "/var/log/backups"
+
+# Retention settings
+backup_retention_days: 7
+backup_retention_weeks: 4
+backup_retention_months: 3
+
+# Compression settings
+backup_compression: true
+backup_compression_type: "gzip"
+
+# Remote storage settings
+backup_remote_enabled: false
+backup_remote_type: "s3"  # Options: s3, sftp, nfs
+backup_remote_path: ""
+backup_remote_retention_days: 30
+
+# Schedule settings
+backup_schedule:
+  monitoring:
+    frequency: "daily"
+    time: "01:00"
+  databases:
+    frequency: "daily"
+    time: "02:00"
+  verify:
+    frequency: "daily"
+    time: "04:00"
+  configurations:
+    frequency: "weekly"
+    time: "02:00"
+  services:
+    frequency: "daily"
+    time: "03:00"
+
+# Notification settings
+backup_notifications_enabled: true
+backup_notification_email: "root@localhost"
+backup_notification_on:
+  - success
+  - failure
+  - warning
+
+# Backup items
+backup_databases:
+  - type: mongodb
+    name: "monitoring_db"
+    port: 27017
+  - type: influxdb
+    name: "metrics_db"
+    port: 8086
+
+backup_configurations:
+  - "/etc/nginx"
+  - "/etc/prometheus"
+  - "/etc/grafana"
+  - "/etc/mosquitto"
+
+# Verification settings
+backup_verify_after_create: true
+backup_verify_schedule: "weekly"
+
+# Monitoring service paths
+prometheus_data_dir: /var/lib/prometheus
+prometheus_config_dir: /etc/prometheus
+grafana_data_dir: /var/lib/grafana
+grafana_provisioning_dir: /etc/grafana/provisioning
+influxdb_data_dir: /var/lib/influxdb
+mosquitto_config_dir: /etc/mosquitto
+
+# Health check configuration
+health_check_interval: 300  # 5 minutes in seconds
+health_check_cpu_threshold: 80
+health_check_memory_threshold: 85
+health_check_disk_threshold: 85
+
+# Log rotation configuration
+log_rotation_days: 14
+log_compression_enabled: true
+log_backup_count: 4
+
+# SSL/TLS certificates backup
+ssl_cert_backup_enabled: true
+ssl_cert_paths:
+  - /etc/ssl/certs
+  - /etc/ssl/private
+
+# Remote backup options
+remote_backup:
+  protocol: rsync
+  host: ""
+  user: ""
+  path: ""
+  options: "--archive --compress --delete"

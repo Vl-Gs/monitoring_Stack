@@ -1,0 +1,19 @@
+---
+- name: reload systemd
+  systemd:
+    daemon_reload: true
+
+- name: restart monitoring-health
+  systemd:
+    name: monitoring-health.service
+    state: restarted
+
+- name: restart logrotate
+  systemd:
+    name: logrotate
+    state: restarted
+
+- name: reload cron
+  systemd:
+    name: cron
+    state: reloaded

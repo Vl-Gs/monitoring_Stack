@@ -1,0 +1,34 @@
+[Unit]
+Description=Node Exporter
+Documentation=https://github.com/prometheus/node_exporter
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User={{ monitoring_user }}
+Group={{ monitoring_group }}
+Type=simple
+ExecStart={{ node_exporter_binary_path }} \
+{% for option in node_exporter_options %}
+    {{ option }} {% if not loop.last %}\{% endif %}
+{% endfor %}
+
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+StandardOutput=append:{{ monitoring_log_dir }}/node_exporter.log
+StandardError=append:{{ monitoring_log_dir }}/node_exporter.error.log
+
+# Security settings
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths={{ monitoring_data_dir }}
+PrivateTmp=true
+PrivateDevices=true
+ProtectControlGroups=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+
+[Install]
+WantedBy=multi-user.target

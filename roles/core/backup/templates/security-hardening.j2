@@ -1,0 +1,112 @@
+#!/bin/bash
+
+# Security hardening script for monitoring stack
+# {{ ansible_managed }}
+
+set -e
+
+# Configuration
+SERVICES=("prometheus" "grafana-server" "influxdb" "mosquitto")
+LOG_FILE="/var/log/security-hardening.log"
+
+log_message() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a $LOG_FILE
+}
+
+# File permissions hardening
+log_message "Hardening file permissions..."
+
+# Prometheus
+chmod 750 {{ prometheus_data_dir }}
+chmod 640 {{ prometheus_config_dir }}/*.yml
+chown -R prometheus:prometheus {{ prometheus_data_dir }} {{ prometheus_config_dir }}
+
+# Grafana
+chmod 750 {{ grafana_data_dir }}
+chmod 640 {{ grafana_provisioning_dir }}/*.yml
+chown -R grafana:grafana {{ grafana_data_dir }} {{ grafana_provisioning_dir }}
+
+# InfluxDB
+chmod 750 {{ influxdb_data_dir }}
+chown -R influxdb:influxdb {{ influxdb_data_dir }}
+
+# Mosquitto
+chmod 750 /etc/mosquitto
+chmod 640 /etc/mosquitto/*.conf
+chown -R mosquitto:mosquitto /etc/mosquitto
+
+# SSL/TLS certificates
+chmod 700 /etc/ssl/private
+chmod 600 /etc/ssl/private/*.key
+chmod 644 /etc/ssl/certs/*.pem
+chown root:root /etc/ssl/private/*.key /etc/ssl/certs/*.pem
+
+# Service hardening
+log_message "Hardening service configurations..."
+
+# Create service override directories
+mkdir -p /etc/systemd/system/prometheus.service.d
+mkdir -p /etc/systemd/system/grafana-server.service.d
+mkdir -p /etc/systemd/system/influxdb.service.d
+mkdir -p /etc/systemd/system/mosquitto.service.d
+
+# Apply security limits
+for service in "${SERVICES[@]}"; do
+    cat > "/etc/systemd/system/${service}.service.d/override.conf" << EOF
+[Service]
+# Restrict system calls using seccomp
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+
+# Restrict access to system directories
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+
+# Restrict capabilities
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+NoNewPrivileges=true
+
+# Memory protection
+MemoryDenyWriteExecute=true
+EOF
+done
+
+# Reload systemd
+systemctl daemon-reload
+
+# Restart services with new security settings
+log_message "Restarting services with hardened configurations..."
+for service in "${SERVICES[@]}"; do
+    systemctl restart $service
+    if systemctl is-active --quiet $service; then
+        log_message "$service restarted successfully with hardened configuration"
+    else
+        log_message "ERROR: Failed to restart $service"
+        exit 1
+    fi
+done
+
+# Verify configurations
+log_message "Verifying security configurations..."
+
+# Check file permissions
+find {{ prometheus_data_dir }} {{ grafana_data_dir }} {{ influxdb_data_dir }} /etc/mosquitto -type f -exec stat -c "%a %n" {} \; | grep -v -E '^[0-9]{3}' && {
+    log_message "ERROR: Found files with incorrect permissions"
+    exit 1
+}
+
+# Check service status
+for service in "${SERVICES[@]}"; do
+    if ! systemctl status $service | grep -q "SecurityPolicy=strict"; then
+        log_message "ERROR: Security policy not applied to $service"
+        exit 1
+    fi
+done
+
+log_message "Security hardening completed successfully"

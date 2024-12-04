@@ -1,0 +1,13 @@
+{{ monitoring_log_dir }}/*.log {
+    daily
+    rotate 7
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 {{ monitoring_user }} {{ monitoring_group }}
+    sharedscripts
+    postrotate
+        systemctl restart node_exporter
+    endscript
+}

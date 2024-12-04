@@ -1,0 +1,74 @@
+/var/log/monitoring-health.log {
+    daily
+    rotate 7
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0644 root root
+    postrotate
+        systemctl restart monitoring-health.service
+    endscript
+}
+
+/var/log/prometheus/*.log {
+    daily
+    rotate 14
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 prometheus prometheus
+    postrotate
+        systemctl restart prometheus
+    endscript
+}
+
+/var/log/grafana/*.log {
+    daily
+    rotate 14
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 grafana grafana
+    postrotate
+        systemctl restart grafana-server
+    endscript
+}
+
+/var/log/influxdb/*.log {
+    daily
+    rotate 14
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 influxdb influxdb
+    postrotate
+        systemctl restart influxdb
+    endscript
+}
+
+/var/log/mosquitto/*.log {
+    daily
+    rotate 14
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 mosquitto mosquitto
+    postrotate
+        systemctl restart mosquitto
+    endscript
+}
+
+/var/log/backup/*.log {
+    weekly
+    rotate 4
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 root root
+}

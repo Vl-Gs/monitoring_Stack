@@ -1,0 +1,91 @@
+---
+- name: Install network packages
+  apt:
+    name:
+      - ifupdown
+      - bridge-utils
+      - net-tools
+      - iptables
+      - iptables-persistent
+      - netfilter-persistent
+      - ipvsadm
+      - keepalived
+      - ethtool
+      - tcpdump
+      - nload
+      - iftop
+    state: present
+    update_cache: true
+
+- name: Configure network interfaces
+  template:
+    src: interfaces.j2
+    dest: /etc/network/interfaces
+    owner: root
+    group: root
+    mode: '0644'
+  notify: restart networking
+
+- name: Configure network optimization parameters
+  sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    state: present
+    sysctl_file: /etc/sysctl.d/99-network-tuning.conf
+  with_dict: "{{ network_tcp_settings }}"
+  notify: reload sysctl
+
+- name: Configure firewall rules
+  template:
+    src: iptables-rules.j2
+    dest: /etc/iptables/rules.v4
+    owner: root
+    group: root
+    mode: '0600'
+  notify: reload iptables
+  when: network_security.enable_firewall
+
+- name: Enable and configure BBR
+  block:
+    - name: Set TCP congestion control to BBR
+      sysctl:
+        name: net.ipv4.tcp_congestion_control
+        value: "{{ network_tuning.tcp_congestion_control }}"
+        state: present
+    - name: Enable TCP Fast Open
+      sysctl:
+        name: net.ipv4.tcp_fastopen
+        value: "{{ network_tuning.tcp_fastopen }}"
+        state: present
+  when: network_tuning.enable_bbr
+
+- name: Configure load balancing
+  template:
+    src: keepalived.conf.j2
+    dest: /etc/keepalived/keepalived.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: restart keepalived
+  when: network_load_balancing.enable
+
+- name: Configure network monitoring
+  template:
+    src: netdata.conf.j2
+    dest: /etc/netdata/netdata.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: restart netdata
+  when: network_monitoring.enable_netdata
+
+- name: Enable and start services
+  systemd:
+    name: "{{ item }}"
+    state: started
+    enabled: true
+  with_items:
+    - netfilter-persistent
+    - keepalived
+    - netdata
+  when: "item in ansible_facts.services"

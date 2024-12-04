@@ -1,0 +1,85 @@
+[paths]
+data = {{ grafana_data_dir }}
+logs = {{ grafana_log_dir }}
+plugins = {{ grafana_plugins_dir }}
+provisioning = {{ grafana_provisioning_dir }}
+
+[server]
+protocol = {% if grafana_ssl_enabled %}https{% else %}http{% endif %}
+http_addr = {{ grafana_http_addr }}
+http_port = {{ grafana_http_port }}
+domain = {{ grafana_domain }}
+root_url = {{ grafana_root_url }}
+{% if grafana_ssl_enabled %}
+cert_file = {{ grafana_ssl_cert }}
+cert_key = {{ grafana_ssl_key }}
+{% endif %}
+
+[database]
+type = {{ grafana_database.type }}
+{% if grafana_database.type != 'sqlite3' %}
+host = {{ grafana_database.host }}
+name = {{ grafana_database.name }}
+user = {{ grafana_database.user }}
+password = {{ grafana_database.password }}
+{% else %}
+path = {{ grafana_database.path }}
+{% endif %}
+max_idle_conn = {{ grafana_database.max_idle_conn }}
+max_open_conn = {{ grafana_database.max_open_conn }}
+conn_max_lifetime = {{ grafana_database.conn_max_lifetime }}
+
+[security]
+admin_user = {{ grafana_admin_user }}
+admin_password = {{ grafana_admin_password }}
+secret_key = {{ grafana_secret_key }}
+disable_gravatar = {{ grafana_disable_gravatar | lower }}
+disable_sanitize_html = {{ grafana_disable_sanitize_html | lower }}
+
+[auth]
+disable_login_form = {{ grafana_auth.disable_login_form | lower }}
+disable_signout_menu = {{ grafana_auth.disable_signout_menu | lower }}
+anonymous_enabled = {{ grafana_auth.anonymous_enabled | lower }}
+oauth_auto_login = {{ grafana_auth.oauth_auto_login | lower }}
+
+[users]
+allow_sign_up = false
+auto_assign_org = true
+auto_assign_org_role = Viewer
+
+{% if grafana_smtp_enabled %}
+[smtp]
+enabled = true
+host = {{ grafana_smtp.host }}
+user = {{ grafana_smtp.user }}
+password = {{ grafana_smtp.password }}
+from_address = {{ grafana_smtp.from_address }}
+from_name = {{ grafana_smtp.from_name }}
+skip_verify = {{ grafana_smtp.skip_verify | lower }}
+{% endif %}
+
+[metrics]
+enabled = {{ grafana_metrics_enabled | lower }}
+basic_auth_username = {{ grafana_metrics_basic_auth_username }}
+basic_auth_password = {{ grafana_metrics_basic_auth_password }}
+
+[feature_toggles]
+enable = {% for feature, enabled in grafana_features.items() if enabled %}{{ feature }}{% if not loop.last %},{% endif %}{% endfor %}
+
+[log]
+mode = console file
+level = info
+filters = sampling.type:rate limit:10 burst:30
+
+[dashboards]
+versions_to_keep = 20
+min_refresh_interval = 5s
+
+[auth.anonymous]
+enabled = {{ grafana_auth.anonymous_enabled | lower }}
+org_name = Main Org.
+org_role = Viewer
+
+[unified_alerting]
+enabled = true
+execute_alerts = true

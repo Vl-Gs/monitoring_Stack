@@ -1,0 +1,57 @@
+[global]
+    hostname = {{ ansible_hostname }}
+    history = 3600
+    update every = {{ network_monitoring.monitoring_interval }}
+    memory mode = save
+    page cache size = 32
+    dbengine disk space = 256
+
+[web]
+    bind to = 0.0.0.0:19999
+    allow connections from = localhost 10.* 192.168.* 172.16.*
+    allow dashboard from = localhost 10.* 192.168.* 172.16.*
+
+[plugins]
+    proc = yes
+    diskspace = yes
+    cgroups = yes
+    tc = yes
+    idlejitter = yes
+    python.d = yes
+    apps = yes
+    charts.d = yes
+
+[health]
+    enabled = yes
+    in memory max health log entries = 1000
+    script to execute on alarm = /usr/libexec/netdata/plugins.d/alarm-notify.sh
+
+[backend]
+    enabled = yes
+    type = prometheus
+    destination = 127.0.0.1:9090
+    data source = average
+    update every = 10
+    send charts matching = system.* apps.* net.*
+
+[statsd]
+    enabled = yes
+
+[registry]
+    enabled = no
+
+[plugin:proc:/proc/net/dev]
+    enable by default interfaces matching = eth* ens* enp* eno* br*
+    bandwidth calculation algorithm = incremental
+    enable bandwidth = yes
+    enable packets = yes
+    enable errors = yes
+    enable drops = yes
+    enable fifo = yes
+    enable compressed = yes
+    enable events = yes
+    enable speed = yes
+    enable duplex = yes
+    enable operstate = yes
+    enable carrier = yes
+    enable mtu = yes

@@ -1,0 +1,106 @@
+---
+- name: Download InfluxDB GPG key
+  get_url:
+    url: "{{ influxdb_apt_key }}"
+    dest: /usr/share/keyrings/influxdb-archive-keyring.gpg
+    mode: '0644'
+
+- name: Add InfluxDB repository
+  apt_repository:
+    repo: "{{ influxdb_apt_repo }}"
+    state: present
+    update_cache: true
+
+- name: Install InfluxDB packages
+  apt:
+    name: "{{ influxdb_package }}"
+    state: present
+    update_cache: true
+
+- name: Create InfluxDB directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: influxdb
+    group: influxdb
+    mode: '0750'
+  with_items:
+    - "{{ influxdb_data_dir }}"
+    - "{{ influxdb_meta_dir }}"
+    - "{{ influxdb_wal_dir }}"
+    - "{{ influxdb_log_dir }}"
+    - "{{ influxdb_backup_dir }}"
+    - "/etc/influxdb"
+    - "/etc/influxdb/ssl"
+
+- name: Configure InfluxDB SSL
+  block:
+    - name: Generate SSL private key
+      openssl_privatekey:
+        path: "{{ influxdb_ssl_key }}"
+        size: 4096
+        mode: '0600'
+        owner: influxdb
+        group: influxdb
+      when: influxdb_ssl_enabled
+
+    - name: Generate SSL certificate
+      openssl_certificate:
+        path: "{{ influxdb_ssl_cert }}"
+        privatekey_path: "{{ influxdb_ssl_key }}"
+        provider: selfsigned
+        owner: influxdb
+        group: influxdb
+      when: influxdb_ssl_enabled
+
+- name: Configure InfluxDB
+  template:
+    src: config.yml.j2
+    dest: /etc/influxdb/config.yml
+    owner: influxdb
+    group: influxdb
+    mode: '0640'
+  notify: restart influxdb
+
+- name: Configure InfluxDB backup script
+  template:
+    src: backup-influxdb.j2
+    dest: /etc/cron.{{ influxdb_backup_frequency }}/backup-influxdb
+    mode: '0750'
+    owner: root
+    group: root
+  when: influxdb_backup_enabled
+
+- name: Start and enable InfluxDB
+  systemd:
+    name: influxdb
+    state: started
+    enabled: true
+    daemon_reload: true
+
+- name: Wait for InfluxDB to be ready
+  wait_for:
+    port: "{{ influxdb_http_port }}"
+    timeout: 30
+
+- name: Initialize InfluxDB
+  command: >
+    influx setup 
+    --username {{ influxdb_admin_user }}
+    --password {{ influxdb_admin_password }}
+    --org {{ influxdb_org }}
+    --bucket {{ influxdb_bucket }}
+    --retention {{ influxdb_retention }}
+    --force
+  args:
+    creates: "{{ influxdb_data_dir }}/.initialized"
+  when: influxdb_auth_enabled
+
+- name: Create initialization marker
+  file:
+    path: "{{ influxdb_data_dir }}/.initialized"
+    state: touch
+    owner: influxdb
+    group: influxdb
+    mode: '0640'
+  when: influxdb_auth_enabled

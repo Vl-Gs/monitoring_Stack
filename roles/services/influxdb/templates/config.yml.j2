@@ -1,0 +1,46 @@
+bolt-path: {{ influxdb_data_dir }}/influxd.bolt
+engine-path: {{ influxdb_data_dir }}/engine
+http-bind-address: {{ influxdb_bind_address }}
+query-memory-bytes: {{ influxdb_cache_max_memory_size }}
+reporting-disabled: {{ influxdb_reporting_disabled | lower }}
+
+{% if influxdb_ssl_enabled %}
+tls-cert: {{ influxdb_ssl_cert }}
+tls-key: {{ influxdb_ssl_key }}
+tls-strict-ciphers: true
+{% endif %}
+
+storage:
+  wal-fsync-delay: 1s
+  validate-keys: true
+  cache-max-memory-size: {{ influxdb_cache_max_memory_size }}
+  cache-snapshot-memory-size: {{ influxdb_cache_max_memory_size }}
+  series-id-set-cache-size: 100
+
+query:
+  max-concurrent-queries: {{ influxdb_max_concurrent_queries }}
+  query-timeout: {{ influxdb_query_timeout }}
+  log-queries-after: 10s
+  max-series-per-database: {{ influxdb_max_series_per_database }}
+  max-values-per-tag: {{ influxdb_max_values_per_tag }}
+
+monitoring:
+  enabled: {{ influxdb_monitoring_enabled | lower }}
+  store-enabled: true
+  store-database: "{{ influxdb_monitoring_database }}"
+  store-interval: "{{ influxdb_monitoring_interval }}"
+
+logging:
+  format: auto
+  level: info
+  suppress-logo: false
+
+{% if influxdb_ha_enabled %}
+meta:
+  dir: {{ influxdb_meta_dir }}
+  bind-address: {{ influxdb_ha_bind_address }}
+  http-bind-address: {{ influxdb_ha_bind_address }}
+  https-enabled: {{ influxdb_ssl_enabled | lower }}
+  https-certificate: {{ influxdb_ssl_cert }}
+  peers: {{ influxdb_ha_peers | to_json }}
+{% endif %}

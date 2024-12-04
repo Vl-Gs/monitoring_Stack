@@ -1,0 +1,132 @@
+---
+- name: Import MongoDB public GPG key
+  apt_key:
+    url: "{{ mongodb_apt_keyserver }}"
+    state: present
+
+- name: Add MongoDB repository
+  apt_repository:
+    repo: "{{ mongodb_apt_repo }}"
+    state: present
+    update_cache: true
+
+- name: Install MongoDB packages
+  apt:
+    name: 
+      - "{{ mongodb_package }}"
+      - "{{ mongodb_package }}-server"
+      - "{{ mongodb_package }}-shell"
+      - "{{ mongodb_package }}-tools"
+    state: present
+    update_cache: true
+
+- name: Create MongoDB directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: mongodb
+    group: mongodb
+    mode: '0750'
+  with_items:
+    - "{{ mongodb_dbpath }}"
+    - "{{ mongodb_backup_dir }}"
+    - "/etc/mongodb"
+    - "/etc/mongodb/ssl"
+    - "/var/log/mongodb"
+    - "/var/run/mongodb"
+
+- name: Configure MongoDB
+  template:
+    src: mongod.conf.j2
+    dest: /etc/mongod.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: restart mongodb
+
+- name: Configure MongoDB SSL
+  block:
+    - name: Generate SSL private key
+      openssl_privatekey:
+        path: "{{ mongodb_ssl_key }}"
+        size: 4096
+        mode: '0600'
+        owner: mongodb
+        group: mongodb
+      when: mongodb_ssl
+
+    - name: Generate SSL certificate
+      openssl_csr:
+        path: "/etc/mongodb/ssl/mongodb.csr"
+        privatekey_path: "{{ mongodb_ssl_key }}"
+        common_name: "{{ ansible_fqdn }}"
+        owner: mongodb
+        group: mongodb
+      when: mongodb_ssl
+
+    - name: Generate self-signed certificate
+      openssl_certificate:
+        path: "{{ mongodb_ssl_cert }}"
+        csr_path: "/etc/mongodb/ssl/mongodb.csr"
+        privatekey_path: "{{ mongodb_ssl_key }}"
+        provider: selfsigned
+        owner: mongodb
+        group: mongodb
+      when: mongodb_ssl
+
+- name: Install MongoDB Exporter
+  block:
+    - name: Download MongoDB Exporter
+      get_url:
+        url: "https://github.com/percona/mongodb_exporter/releases/download/v{{ mongodb_exporter_version }}/mongodb_exporter-{{ mongodb_exporter_version }}.linux-amd64.tar.gz"
+        dest: "/tmp/mongodb_exporter.tar.gz"
+      when: mongodb_exporter_enabled
+
+    - name: Extract MongoDB Exporter
+      unarchive:
+        src: "/tmp/mongodb_exporter.tar.gz"
+        dest: "/usr/local/bin"
+        remote_src: true
+        creates: "/usr/local/bin/mongodb_exporter"
+      when: mongodb_exporter_enabled
+
+    - name: Configure MongoDB Exporter service
+      template:
+        src: mongodb_exporter.service.j2
+        dest: /etc/systemd/system/mongodb_exporter.service
+        mode: '0644'
+      notify: restart mongodb_exporter
+      when: mongodb_exporter_enabled
+
+- name: Configure MongoDB backup
+  template:
+    src: backup-mongodb.j2
+    dest: /etc/cron.{{ mongodb_backup_frequency }}/backup-mongodb
+    mode: '0750'
+    owner: root
+    group: root
+  when: mongodb_backup_enabled
+
+- name: Start and enable MongoDB
+  systemd:
+    name: mongod
+    state: started
+    enabled: true
+    daemon_reload: true
+
+- name: Initialize MongoDB admin user
+  mongodb_user:
+    database: admin
+    name: "{{ mongodb_admin_user }}"
+    password: "{{ mongodb_admin_password }}"
+    roles: ["root"]
+    state: present
+  when: mongodb_auth
+
+- name: Configure MongoDB replication
+  mongodb_replicaset:
+    login_user: "{{ mongodb_admin_user }}"
+    login_password: "{{ mongodb_admin_password }}"
+    replica_set: "{{ mongodb_replica_set_name }}"
+    members: "{{ mongodb_replica_members }}"
+  when: mongodb_replication_enabled

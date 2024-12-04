@@ -1,0 +1,16 @@
+[monitoring_servers]
+vagrant-monitor ansible_host=192.168.56.10
+
+[database_servers]
+vagrant-monitor ansible_host=192.168.56.10
+
+[all:vars]
+ansible_user=vagrant
+ansible_ssh_private_key_file=~/.vagrant.d/insecure_private_key
+ansible_python_interpreter=/usr/bin/python3
+
+[monitoring_servers:vars]
+prometheus_node_exporter_targets=["localhost:9100"]
+prometheus_mongodb_exporter_targets=["localhost:9216"]
+prometheus_influxdb_targets=["localhost:8086"]
+prometheus_mosquitto_exporter_targets=["localhost:9234"]

@@ -1,0 +1,49 @@
+*filter
+:INPUT {{ network_security.default_policy }} [0:0]
+:FORWARD {{ network_security.default_policy }} [0:0]
+:OUTPUT ACCEPT [0:0]
+
+# Allow established connections
+-A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+
+# Allow loopback
+-A INPUT -i lo -j ACCEPT
+
+# Allow ping
+-A INPUT -p icmp --icmp-type echo-request -j ACCEPT
+
+# Allow specified ports
+{% for rule in network_security.allowed_ports %}
+-A INPUT -p {{ rule.protocol }} --dport {{ rule.port }} -j ACCEPT
+{% endfor %}
+
+# Allow high availability checks if enabled
+{% if network_ha.enable %}
+-A INPUT -p vrrp -j ACCEPT
+{% endif %}
+
+# Allow monitoring ports if enabled
+{% if network_monitoring.enable_netdata %}
+-A INPUT -p tcp --dport 19999 -j ACCEPT
+{% endif %}
+
+# Log dropped packets
+-A INPUT -m limit --limit 5/min -j LOG --log-prefix "iptables_INPUT_denied: " --log-level 7
+
+# Reject everything else
+-A INPUT -j REJECT --reject-with icmp-host-prohibited
+-A FORWARD -j REJECT --reject-with icmp-host-prohibited
+
+COMMIT
+
+*nat
+:PREROUTING ACCEPT [0:0]
+:INPUT ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+:POSTROUTING ACCEPT [0:0]
+
+{% if network_load_balancing.enable %}
+# Load balancing NAT rules can be added here
+{% endif %}
+
+COMMIT
